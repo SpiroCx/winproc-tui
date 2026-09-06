@@ -1179,6 +1179,9 @@ pub(crate) struct App {
     pub(crate) process_environment_in_flight: Option<ProcessIdentity>,
     pub(crate) process_environment_in_flight_generation: Option<u64>,
     pub(crate) process_environment_in_flight_request_id: Option<u64>,
+    pub(crate) compat_layer_probe_in_flight: Option<ProcessIdentity>,
+    pub(crate) compat_layer_probe_in_flight_request_id: Option<u64>,
+    pub(crate) compat_layer_checked_identities: HashSet<ProcessIdentity>,
     pub(crate) process_environment_next_request_id: u64,
     pub(crate) process_environment_filter: String,
     pub(crate) process_environment_filter_cursor: usize,
@@ -1463,6 +1466,9 @@ impl App {
             process_environment_in_flight: None,
             process_environment_in_flight_generation: None,
             process_environment_in_flight_request_id: None,
+            compat_layer_probe_in_flight: None,
+            compat_layer_probe_in_flight_request_id: None,
+            compat_layer_checked_identities: HashSet::new(),
             process_environment_next_request_id: 0,
             process_environment_filter: String::new(),
             process_environment_filter_cursor: 0,
@@ -2082,6 +2088,8 @@ impl App {
             self.process_table_state.select(Some(index));
             self.selected_process_identity = self.visible_process_identity_at(index);
         }
+
+        self.request_next_compat_layer_probe();
     }
 
     fn rebuild_normalized_watch_names(&mut self) {
@@ -6223,12 +6231,38 @@ impl App {
     }
 
     fn apply_process_environment_result(&mut self, result: ProcessEnvironmentResult) -> bool {
-        if self.process_environment_in_flight.as_ref() != Some(&result.identity)
-            || self.process_environment_in_flight_generation != Some(result.generation)
-            || self.process_environment_in_flight_request_id != Some(result.request_id)
-        {
+        let is_dialog_request = self.process_environment_in_flight.as_ref() == Some(&result.identity)
+            && self.process_environment_in_flight_generation == Some(result.generation)
+            && self.process_environment_in_flight_request_id == Some(result.request_id);
+        let is_compat_probe = self.compat_layer_probe_in_flight.as_ref() == Some(&result.identity)
+            && self.compat_layer_probe_in_flight_request_id == Some(result.request_id);
+
+        if !is_dialog_request && !is_compat_probe {
             return false;
         }
+
+        let compat_layer = result.outcome.as_ref().ok().and_then(|report| {
+            report
+                .entries
+                .iter()
+                .find(|entry| entry.name.eq_ignore_ascii_case("__COMPAT_LAYER"))
+                .and_then(|entry| {
+                    let trimmed = entry.value.trim();
+                    (!trimmed.is_empty()).then(|| trimmed.to_string())
+                })
+        });
+        self.compat_layer_checked_identities.insert(result.identity.clone());
+        self.apply_compat_layer_for_identity(&result.identity, compat_layer);
+
+        if is_compat_probe {
+            self.compat_layer_probe_in_flight = None;
+            self.compat_layer_probe_in_flight_request_id = None;
+        }
+        if !is_dialog_request {
+            self.request_next_compat_layer_probe();
+            return true;
+        }
+
         self.process_environment_in_flight = None;
         self.process_environment_in_flight_generation = None;
         self.process_environment_in_flight_request_id = None;
@@ -6240,22 +6274,14 @@ impl App {
                 .map(|target| &target.identity)
                 != Some(&result.identity)
         {
-            return false;
+            self.request_next_compat_layer_probe();
+            return true;
         }
 
         match result.outcome {
             Ok(report) => {
                 let count = report.entries.len();
                 let process_name = report.process_name.clone();
-                let compat_layer = report
-                    .entries
-                    .iter()
-                    .find(|entry| entry.name.eq_ignore_ascii_case("__COMPAT_LAYER"))
-                    .and_then(|entry| {
-                        let trimmed = entry.value.trim();
-                        (!trimmed.is_empty()).then(|| trimmed.to_string())
-                    });
-                self.apply_compat_layer_for_identity(&result.identity, compat_layer);
                 self.process_environment_result_identity = Some(result.identity);
                 self.process_environment_result = Some(report);
                 self.process_environment_error = None;
@@ -6275,6 +6301,7 @@ impl App {
         let total = crate::ui::process_environment::process_environment_total_rows(self, width);
         self.process_info_environment_scroll
             .set_page_size(self.process_info_environment_scroll.page_size, total);
+        self.request_next_compat_layer_probe();
         true
     }
 
@@ -7262,6 +7289,8 @@ impl App {
             process_info_cache: HashMap::new(),
             process_info_display_identity: None,
         });
+        self.compat_layer_probe_in_flight = None;
+        self.compat_layer_probe_in_flight_request_id = None;
         self.show_log_list = false;
         self.paused_display = None;
         self.clear_graph_workspace_state();
@@ -7290,6 +7319,8 @@ impl App {
         self.log_view_interval_seconds = None;
         self.log_view_frame_times.clear();
         self.log_view_display = None;
+        self.compat_layer_probe_in_flight = None;
+        self.compat_layer_probe_in_flight_request_id = None;
         self.log_view_watch_list.clear();
         self.log_view_normalized_watch_names.clear();
         self.clear_graph_workspace_state();
@@ -7522,6 +7553,24 @@ impl App {
     }
 
     fn prune_stale_process_state(&mut self) {
+        let mut known_identities = self
+            .snapshot
+            .processes
+            .iter()
+            .map(ProcessIdentity::from_row)
+            .collect::<HashSet<_>>();
+        known_identities.extend(self.exited_tracked_rows.keys().cloned());
+        if let Some(paused) = &self.paused_display {
+            known_identities.extend(
+                paused
+                    .snapshot
+                    .processes
+                    .iter()
+                    .map(ProcessIdentity::from_row),
+            );
+            known_identities.extend(paused.exited_tracked_rows.keys().cloned());
+        }
+
         let mut protected_identities = self
             .snapshot
             .processes
@@ -7577,6 +7626,16 @@ impl App {
         );
         self.exited_tracked_rows
             .retain(|identity, _| retained_identities.contains(identity));
+        self.compat_layer_checked_identities
+            .retain(|identity| known_identities.contains(identity));
+        if self
+            .compat_layer_probe_in_flight
+            .as_ref()
+            .is_some_and(|identity| !known_identities.contains(identity))
+        {
+            self.compat_layer_probe_in_flight = None;
+            self.compat_layer_probe_in_flight_request_id = None;
+        }
     }
 
     fn refresh_tracked_live_identities(&mut self) {
@@ -7647,6 +7706,51 @@ impl App {
                 }
             }
         }
+    }
+
+    fn request_next_compat_layer_probe(&mut self) {
+        if !self.process_columns.contains(&MetricColumn::CompatLayer)
+            || self.activity() == AppActivity::LogView
+            || self.compat_layer_probe_in_flight.is_some()
+            || self.process_environment_in_flight.is_some()
+            || (self.show_process_info_dialog && self.process_info_tab == ProcessInfoTab::Environment)
+        {
+            return;
+        }
+
+        let Some((identity, process)) = self.next_compat_layer_probe_target() else {
+            return;
+        };
+
+        self.process_environment_next_request_id = self
+            .process_environment_next_request_id
+            .wrapping_add(1)
+            .max(1);
+        let request_id = self.process_environment_next_request_id;
+        if self
+            .process_environment_worker
+            .request_environment(0, request_id, identity.clone(), process)
+            .is_err()
+        {
+            return;
+        }
+
+        self.compat_layer_probe_in_flight = Some(identity);
+        self.compat_layer_probe_in_flight_request_id = Some(request_id);
+    }
+
+    fn next_compat_layer_probe_target(&self) -> Option<(ProcessIdentity, ProcessRow)> {
+        self.visible_process_entries.iter().find_map(|entry| {
+            let VisibleProcessEntry::Live { snapshot_index, .. } = entry else {
+                return None;
+            };
+            let process = self.display_snapshot().processes.get(*snapshot_index)?.clone();
+            let identity = ProcessIdentity::from_row(&process);
+            if self.compat_layer_checked_identities.contains(&identity) {
+                return None;
+            }
+            Some((identity, process))
+        })
     }
 }
 

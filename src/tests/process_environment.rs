@@ -3,7 +3,7 @@ use super::support::{
     make_test_app, render_app_to_text, test_process_environment_report,
 };
 use crate::app;
-use crate::model::{ProcessEnvironmentEntry, ProcessEnvironmentError};
+use crate::model::{MetricColumn, ProcessEnvironmentEntry, ProcessEnvironmentError};
 use crate::samplers::process_environment::{
     ProcessEnvironmentRequest, ProcessEnvironmentResult, ProcessEnvironmentWorker,
 };
@@ -323,4 +323,42 @@ fn stale_environment_result_cannot_replace_reopened_dialog_request() {
         app.process_environment_result.as_ref().unwrap().entries[0].name,
         "NEW"
     );
+}
+
+#[test]
+fn compat_column_auto_populates_without_opening_process_info_dialog() {
+    let (worker, request_rx, result_tx) = ProcessEnvironmentWorker::test_pair();
+    let mut app = make_test_app(1, 10);
+    app.process_environment_worker = worker;
+    app.process_columns = vec![MetricColumn::CompatLayer];
+
+    app.rebuild_visible_process_cache();
+    let (request_id, identity) = match request_rx.try_recv().unwrap() {
+        ProcessEnvironmentRequest::Collect {
+            request_id,
+            identity,
+            ..
+        } => (request_id, identity),
+        ProcessEnvironmentRequest::Stop => panic!("unexpected stop request"),
+    };
+
+    result_tx
+        .send(ProcessEnvironmentResult {
+            generation: 0,
+            request_id,
+            identity: identity.clone(),
+            outcome: Ok(test_process_environment_report(
+                &identity.name,
+                identity.pid,
+                vec![ProcessEnvironmentEntry {
+                    name: "__COMPAT_LAYER".to_string(),
+                    value: "RunAsAdmin".to_string(),
+                }],
+            )),
+        })
+        .unwrap();
+
+    assert!(app.poll_process_environment_results().unwrap());
+    let rendered = render_app_to_text(&app, 80, 25);
+    assert!(rendered.contains("Admin"), "{rendered}");
 }
