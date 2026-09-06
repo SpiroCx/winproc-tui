@@ -18,7 +18,7 @@ Live sampling is requested once per second. The header derives freshness from th
 
 The Process table can select the 24 columns included in `MetricColumn::ALL`. Fresh configurations select CPU, private bytes, private working set, threads, handles, GPU usage and dedicated memory, and read/write I/O rates. The remaining columns, including .NET metrics, remain explicitly selectable; saved column selections are retained.
 Most columns are numeric metrics that can be sorted, graphed, sampled, and recorded.
-`Full Path` is a text column for process identification; it can be displayed, sorted, copied, filtered, and recorded, but it is not a Graph metric.
+`Compat` and `Full Path` are text columns for process identification context; they can be displayed, sorted, copied, and filtered, but they are not Graph metrics.
 
 | Display name | Log field | Description | Primary source | Display format |
 |---|---|---|---|---|
@@ -45,10 +45,11 @@ Most columns are numeric metrics that can be sorted, graphed, sampled, and recor
 | `GPU S` | `gpu_shared_bytes` | Shared system memory used by the process for GPU resources. | PDH `\GPU Process Memory(pid_*)\Non Local Usage` | Adaptive decimal byte unit in Processes; exact bytes in detail/copy/log |
 | `IO Read/s` | `io_read_bytes_per_sec` | Process read I/O throughput, including file, network, and device I/O. | PDH `IO Read Bytes/sec` | Whole-number decimal `KB/s` in Processes; Graph, Samples, and copy use the adaptive rate format described below |
 | `IO Write/s` | `io_write_bytes_per_sec` | Process write I/O throughput, including file, network, and device I/O. | PDH `IO Write Bytes/sec` | Whole-number decimal `KB/s` in Processes; Graph, Samples, and copy use the adaptive rate format described below |
+| `Compat` | Not recorded | `__COMPAT_LAYER` environment variable when Process Info `Environment` has collected it for that process identity. | Process Info `Environment` worker (`NtQueryInformationProcess` + remote environment block parse) | Text, shortened from the end when the cell is narrow |
 | `Full Path` | `path` | Executable path. Used to distinguish same-name processes from different build or working directories. | `sysinfo::Process::exe()` | Path text, shortened from the start when the cell is narrow |
 
-When the `Full Path` column is selected in the Process table, filtering matches both process name and executable path.
-When it is not selected, filtering matches process name only.
+When either `Compat` or `Full Path` is selected in the Process table, filtering matches process name and the selected text columns.
+When neither text column is selected, filtering matches process name only.
 Compact byte formatting is used in the Processes table and for Graph Y-axis tick labels. Sorting and Graph data continue to use the raw numeric values.
 
 Modern .NET metrics are collected for every detected live process identity; Tracking List registration is not required for the current display. Non-tracked processes keep only ordinary short Live history, while Recording remains limited to the session's fixed Tracking List scope.
@@ -180,7 +181,7 @@ The `Image` tab displays these values:
 
 Unavailable values are displayed as one of `<access denied>`, `<exited>`, `<not available>`, `<missing>`, or `--`.
 
-The `Metrics` tab always lists the 23 numeric selectable process metrics in `MetricColumn::ALL` order, independently of the current Processes preset. `Full Path` is excluded. Unlike the compact Processes column headers, the tab uses descriptive row names:
+The `Metrics` tab always lists the 23 numeric selectable process metrics in `MetricColumn::ALL` order, independently of the current Processes preset. The text columns `Compat` and `Full Path` are excluded. Unlike the compact Processes column headers, the tab uses descriptive row names:
 
 | Processes column | Metrics row |
 |---|---|

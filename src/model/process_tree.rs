@@ -460,6 +460,9 @@ mod tests {
             SortColumn::Metric(MetricColumn::IoWriteBytesPerSec) => {
                 row.io_write_bytes_per_sec = Some(integer)
             }
+            SortColumn::Metric(MetricColumn::CompatLayer) => {
+                row.compat_layer = Some(if high { "z" } else { "a" }.to_string())
+            }
             SortColumn::Metric(MetricColumn::FullPath) => {
                 row.executable_path = Some(if high { "z" } else { "a" }.to_string())
             }

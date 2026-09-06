@@ -700,6 +700,7 @@ mod tests {
             parent_pid: None,
             name: name.to_string(),
             executable_path: None,
+            compat_layer: None,
             start_time: Some(1_700_000_000 + u64::from(pid)),
             cpu_percent: None,
             private_bytes: Some(private_bytes),

@@ -587,7 +587,7 @@ fn process_metric_line(
     theme: Theme,
 ) -> Line<'static> {
     let value = format_process_column(process, column, column_width);
-    let line = if column == MetricColumn::FullPath {
+    let line = if matches!(column, MetricColumn::FullPath | MetricColumn::CompatLayer) {
         match active_filter_query(app) {
             Some(query) if !process_name_matches_query(process, query) => {
                 highlighted_match_line(value, query, text_style, theme)
@@ -1276,6 +1276,11 @@ fn format_process_column(process: &ProcessRow, column: MetricColumn, column_widt
             .io_write_bytes_per_sec
             .map(format_kb_per_sec)
             .unwrap_or_else(|| "--".to_string()),
+        MetricColumn::CompatLayer => process
+            .compat_layer
+            .as_deref()
+            .map(|value| compact_text_end(value, column_width as usize))
+            .unwrap_or_else(|| "--".to_string()),
         MetricColumn::FullPath => process
             .executable_path
             .as_deref()
@@ -1285,11 +1290,23 @@ fn format_process_column(process: &ProcessRow, column: MetricColumn, column_widt
 }
 
 fn process_metric_alignment(column: MetricColumn) -> Alignment {
-    if matches!(column, MetricColumn::FullPath) {
+    if matches!(column, MetricColumn::CompatLayer | MetricColumn::FullPath) {
         Alignment::Left
     } else {
         Alignment::Right
     }
+}
+
+fn compact_text_end(value: &str, width: usize) -> String {
+    if text_width(value) <= width {
+        return value.to_string();
+    }
+    let marker_width = text_width(TRUNCATION_MARKER);
+    if width < marker_width {
+        return String::new();
+    }
+    let head = prefix_to_width(value, width.saturating_sub(marker_width));
+    format!("{head}{TRUNCATION_MARKER}")
 }
 
 fn compact_path_start(path: &str, width: usize) -> String {
@@ -1321,6 +1338,7 @@ mod tests {
             parent_pid: None,
             name: "app.exe".to_string(),
             executable_path: None,
+            compat_layer: None,
             start_time: Some(1_700_000_001),
             cpu_percent: None,
             private_bytes: Some(120),
@@ -1400,6 +1418,7 @@ mod tests {
             parent_pid: None,
             name: "app.exe".to_string(),
             executable_path: None,
+            compat_layer: None,
             start_time: Some(1_700_000_001),
             cpu_percent: None,
             private_bytes: None,
@@ -1565,15 +1584,15 @@ mod tests {
         assert_eq!(process_metric_overflow_indicator(&all, columns.len()), None);
         assert_eq!(
             process_metric_overflow_indicator(&leading, columns.len()).as_deref(),
-            Some("‹ 1–3/24 ›")
+            Some("‹ 1–3/25 ›")
         );
         assert_eq!(
             process_metric_overflow_indicator(&offset, columns.len()).as_deref(),
-            Some("‹ 10–12/24 ›")
+            Some("‹ 10–12/25 ›")
         );
         assert_eq!(
             process_metric_overflow_indicator(&[], columns.len()).as_deref(),
-            Some("‹ 0/24 ›")
+            Some("‹ 0/25 ›")
         );
     }
 
@@ -1592,6 +1611,7 @@ mod tests {
             parent_pid: None,
             name: "Tracked Total".to_string(),
             executable_path: None,
+            compat_layer: None,
             start_time: None,
             cpu_percent: Some(1.0),
             private_bytes: Some(120),

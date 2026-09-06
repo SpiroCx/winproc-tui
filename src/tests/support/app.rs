@@ -416,6 +416,7 @@ pub(in crate::tests) fn test_snapshot(row_count: usize) -> Snapshot {
             parent_pid: None,
             name: format!("proc-{index}"),
             executable_path: None,
+            compat_layer: None,
             start_time: Some(1_700_000_000 + index as u64),
             cpu_percent: None,
             private_bytes: Some(index as u64),

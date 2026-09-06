@@ -114,6 +114,7 @@ pub(crate) enum MetricColumn {
     GpuSharedBytes,
     IoReadBytesPerSec,
     IoWriteBytesPerSec,
+    CompatLayer,
     FullPath,
 }
 
@@ -156,7 +157,7 @@ impl ProcessColumnWidths {
 }
 
 impl MetricColumn {
-    pub(crate) const ALL: [Self; 24] = [
+    pub(crate) const ALL: [Self; 25] = [
         Self::CpuPercent,
         Self::PrivateBytes,
         Self::WorksetBytes,
@@ -180,6 +181,7 @@ impl MetricColumn {
         Self::GpuSharedBytes,
         Self::IoReadBytesPerSec,
         Self::IoWriteBytesPerSec,
+        Self::CompatLayer,
         Self::FullPath,
     ];
 
@@ -208,6 +210,7 @@ impl MetricColumn {
             Self::GpuSharedBytes => "GPU S",
             Self::IoReadBytesPerSec => "IO Read/s",
             Self::IoWriteBytesPerSec => "IO Write/s",
+            Self::CompatLayer => "Compat",
             Self::FullPath => "Full Path",
         }
     }
@@ -251,6 +254,9 @@ impl MetricColumn {
             Self::GpuSharedBytes => "Shared system memory used by the process for GPU resources",
             Self::IoReadBytesPerSec => "I/O read throughput by the process (file/net/dev)",
             Self::IoWriteBytesPerSec => "I/O write throughput by the process (file/net/dev)",
+            Self::CompatLayer => {
+                "__COMPAT_LAYER environment variable captured from Process Info Environment"
+            }
             Self::FullPath => "Executable path, when available",
         }
     }
@@ -276,6 +282,7 @@ impl MetricColumn {
             | Self::DotNetGcFragmentationBytes => 11,
             Self::DotNetAllocationBytesPerSec => 12,
             Self::IoReadBytesPerSec | Self::IoWriteBytesPerSec => 12,
+            Self::CompatLayer => 16,
             Self::FullPath => 36,
         }
     }
@@ -324,6 +331,7 @@ impl MetricColumn {
             Self::GpuSharedBytes => row.gpu_shared_bytes.map(|value| value.to_string()),
             Self::IoReadBytesPerSec => row.io_read_bytes_per_sec.map(|value| value.to_string()),
             Self::IoWriteBytesPerSec => row.io_write_bytes_per_sec.map(|value| value.to_string()),
+            Self::CompatLayer => row.compat_layer.clone(),
             Self::FullPath => row.executable_path.clone(),
         }
     }
@@ -393,6 +401,9 @@ impl MetricColumn {
             Self::IoWriteBytesPerSec => {
                 compare_optional_u64(left.io_write_bytes_per_sec, right.io_write_bytes_per_sec)
             }
+            Self::CompatLayer => {
+                compare_optional_strings(left.compat_layer.as_deref(), right.compat_layer.as_deref())
+            }
             Self::FullPath => compare_optional_strings(
                 left.executable_path.as_deref(),
                 right.executable_path.as_deref(),
@@ -425,12 +436,13 @@ impl MetricColumn {
             Self::GpuSharedBytes => row.gpu_shared_bytes.is_some(),
             Self::IoReadBytesPerSec => row.io_read_bytes_per_sec.is_some(),
             Self::IoWriteBytesPerSec => row.io_write_bytes_per_sec.is_some(),
+            Self::CompatLayer => row.compat_layer.is_some(),
             Self::FullPath => row.executable_path.is_some(),
         }
     }
 
     pub(crate) fn is_graphable(self) -> bool {
-        !matches!(self, Self::FullPath)
+        !matches!(self, Self::CompatLayer | Self::FullPath)
     }
 }
 
@@ -470,6 +482,7 @@ impl FromStr for MetricColumn {
             "gpus" | "gpushared" => Ok(Self::GpuSharedBytes),
             "ioread/s" | "ioreads" | "ioread" => Ok(Self::IoReadBytesPerSec),
             "iowrite/s" | "iowrites" | "iowrite" => Ok(Self::IoWriteBytesPerSec),
+            "compat" | "compatlayer" | "__compatlayer" => Ok(Self::CompatLayer),
             "path" | "fullpath" | "exepath" | "executablepath" => Ok(Self::FullPath),
             _ => Err(()),
         }
@@ -694,6 +707,7 @@ mod tests {
             parent_pid: None,
             name: name.to_string(),
             executable_path: None,
+            compat_layer: None,
             start_time: Some(1_700_000_000 + u64::from(pid)),
             cpu_percent: None,
             private_bytes,
@@ -795,6 +809,7 @@ mod tests {
             parent_pid: None,
             name: "app.exe".to_string(),
             executable_path: Some(r"C:\work\app.exe".to_string()),
+            compat_layer: Some("RunAsInvoker".to_string()),
             start_time: Some(1_700_000_000),
             cpu_percent: Some(12.3),
             private_bytes: Some(1001),
@@ -928,9 +943,20 @@ mod tests {
             Some("1015")
         );
         assert_eq!(
+            MetricColumn::CompatLayer.raw_value(&row).as_deref(),
+            Some("RunAsInvoker")
+        );
+        assert_eq!(
             MetricColumn::FullPath.raw_value(&row).as_deref(),
             Some(r"C:\work\app.exe")
         );
+    }
+
+    #[test]
+    fn compat_layer_column_is_selectable_but_not_graphable() {
+        assert!(MetricColumn::ALL.contains(&MetricColumn::CompatLayer));
+        assert!(MetricColumn::CompatLayer.is_selectable());
+        assert!(!MetricColumn::CompatLayer.is_graphable());
     }
 
     #[test]

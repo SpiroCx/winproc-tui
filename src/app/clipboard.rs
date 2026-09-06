@@ -398,6 +398,10 @@ fn format_process_metric_column(process: &ProcessRow, column: MetricColumn) -> S
             .io_write_bytes_per_sec
             .map(format_io_rate)
             .unwrap_or_else(|| "--".to_string()),
+        MetricColumn::CompatLayer => process
+            .compat_layer
+            .clone()
+            .unwrap_or_else(|| "--".to_string()),
         MetricColumn::FullPath => process
             .executable_path
             .clone()

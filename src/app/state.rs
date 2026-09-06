@@ -109,6 +109,7 @@ const fn process_info_metric_label(column: MetricColumn) -> &'static str {
         MetricColumn::GpuSharedBytes => "GPU Shared Memory",
         MetricColumn::IoReadBytesPerSec => "I/O Read Throughput",
         MetricColumn::IoWriteBytesPerSec => "I/O Write Throughput",
+        MetricColumn::CompatLayer => "Compatibility Layer",
         MetricColumn::FullPath => "Full Path",
     }
 }
@@ -392,6 +393,7 @@ impl ProcessMetricValue {
             MetricColumn::GpuSharedBytes => sample.gpu_shared_bytes.map(Self::Bytes),
             MetricColumn::IoReadBytesPerSec => sample.io_read_bytes_per_sec.map(Self::IoRate),
             MetricColumn::IoWriteBytesPerSec => sample.io_write_bytes_per_sec.map(Self::IoRate),
+            MetricColumn::CompatLayer => None,
             MetricColumn::FullPath => None,
         }
     }
@@ -778,6 +780,7 @@ impl DetailsMetric {
             MetricColumn::GpuSharedBytes => Some(Self::GpuShared),
             MetricColumn::IoReadBytesPerSec => Some(Self::IoRead),
             MetricColumn::IoWriteBytesPerSec => Some(Self::IoWrite),
+            MetricColumn::CompatLayer => unreachable!("non-graphable column returned early"),
             MetricColumn::FullPath => unreachable!("non-graphable column returned early"),
         }
     }
@@ -1980,7 +1983,10 @@ impl App {
 
     pub(crate) fn rebuild_visible_process_cache(&mut self) {
         let filter = self.active_filter_text().trim().to_ascii_lowercase();
-        let filter_includes_path = self.process_columns.contains(&MetricColumn::FullPath);
+        let filter_includes_text_columns = self
+            .process_columns
+            .iter()
+            .any(|column| matches!(column, MetricColumn::CompatLayer | MetricColumn::FullPath));
         let normalized_watch_names = self.active_normalized_watch_names().clone();
 
         if self.activity() != AppActivity::LogView {
@@ -2017,7 +2023,7 @@ impl App {
                             process_matches_filter(
                                 &snapshot.processes[*index],
                                 &filter,
-                                filter_includes_path,
+                                filter_includes_text_columns,
                             )
                         })
                         .collect::<HashSet<_>>()
@@ -2046,7 +2052,7 @@ impl App {
                             || process_matches_filter(
                                 &snapshot.processes[*index],
                                 &filter,
-                                filter_includes_path,
+                                filter_includes_text_columns,
                             )
                     })
                     .map(|snapshot_index| VisibleProcessEntry::Live {
@@ -2059,7 +2065,7 @@ impl App {
                     .collect::<Vec<_>>()
             }
         };
-        let ghosts = self.visible_ghost_entries(&filter, filter_includes_path);
+        let ghosts = self.visible_ghost_entries(&filter, filter_includes_text_columns);
         self.visible_process_match_count = live_entries
             .iter()
             .filter(|entry| !self.visible_entry_is_filter_context(entry))
@@ -2319,7 +2325,7 @@ impl App {
     fn visible_ghost_entries(
         &self,
         filter: &str,
-        filter_includes_path: bool,
+        filter_includes_text_columns: bool,
     ) -> Vec<VisibleProcessEntry> {
         let mut latest_by_name: HashMap<String, (&ProcessIdentity, DateTime<Local>)> =
             HashMap::new();
@@ -2329,7 +2335,7 @@ impl App {
                 continue;
             }
             if !filter.is_empty()
-                && !process_matches_filter(&row.process, filter, filter_includes_path)
+                && !process_matches_filter(&row.process, filter, filter_includes_text_columns)
             {
                 continue;
             }
@@ -6241,6 +6247,15 @@ impl App {
             Ok(report) => {
                 let count = report.entries.len();
                 let process_name = report.process_name.clone();
+                let compat_layer = report
+                    .entries
+                    .iter()
+                    .find(|entry| entry.name.eq_ignore_ascii_case("__COMPAT_LAYER"))
+                    .and_then(|entry| {
+                        let trimmed = entry.value.trim();
+                        (!trimmed.is_empty()).then(|| trimmed.to_string())
+                    });
+                self.apply_compat_layer_for_identity(&result.identity, compat_layer);
                 self.process_environment_result_identity = Some(result.identity);
                 self.process_environment_result = Some(report);
                 self.process_environment_error = None;
@@ -7399,6 +7414,7 @@ impl App {
         );
         self.last_tracked_live_identities = next_tracked_live_identities;
         let mut next_snapshot = collected.snapshot;
+        preserve_process_compat_layers(&mut next_snapshot.processes, &self.snapshot.processes);
         if self.process_order_hold_active() {
             preserve_process_row_order(
                 &mut next_snapshot.processes,
@@ -7603,6 +7619,54 @@ impl App {
             self.clear_ab_comparison();
         }
     }
+
+    fn apply_compat_layer_for_identity(
+        &mut self,
+        identity: &ProcessIdentity,
+        compat_layer: Option<String>,
+    ) {
+        for process in &mut self.snapshot.processes {
+            if ProcessIdentity::from_row(process) == *identity {
+                process.compat_layer = compat_layer.clone();
+            }
+        }
+        for row in self.exited_tracked_rows.values_mut() {
+            if ProcessIdentity::from_row(&row.process) == *identity {
+                row.process.compat_layer = compat_layer.clone();
+            }
+        }
+        if let Some(paused) = self.paused_display.as_mut() {
+            for process in &mut paused.snapshot.processes {
+                if ProcessIdentity::from_row(process) == *identity {
+                    process.compat_layer = compat_layer.clone();
+                }
+            }
+            for row in paused.exited_tracked_rows.values_mut() {
+                if ProcessIdentity::from_row(&row.process) == *identity {
+                    row.process.compat_layer = compat_layer.clone();
+                }
+            }
+        }
+    }
+}
+
+fn preserve_process_compat_layers(next: &mut [ProcessRow], previous: &[ProcessRow]) {
+    let previous_compat = previous
+        .iter()
+        .filter_map(|row| {
+            row.compat_layer
+                .as_ref()
+                .map(|value| (ProcessIdentity::from_row(row), value.clone()))
+        })
+        .collect::<HashMap<_, _>>();
+    for row in next {
+        if row.compat_layer.is_some() {
+            continue;
+        }
+        if let Some(value) = previous_compat.get(&ProcessIdentity::from_row(row)) {
+            row.compat_layer = Some(value.clone());
+        }
+    }
 }
 
 fn process_column_index_for_sort(sort_column: SortColumn, columns: &[MetricColumn]) -> usize {
@@ -7617,13 +7681,17 @@ fn process_column_index_for_sort(sort_column: SortColumn, columns: &[MetricColum
     }
 }
 
-fn process_matches_filter(process: &ProcessRow, filter: &str, include_path: bool) -> bool {
+fn process_matches_filter(process: &ProcessRow, filter: &str, include_text_columns: bool) -> bool {
     process.name.to_ascii_lowercase().contains(filter)
-        || include_path
-            && process
+        || include_text_columns
+            && (process
                 .executable_path
                 .as_deref()
                 .is_some_and(|path| path.to_ascii_lowercase().contains(filter))
+                || process
+                    .compat_layer
+                    .as_deref()
+                    .is_some_and(|value| value.to_ascii_lowercase().contains(filter)))
 }
 
 fn process_sample_metric_value(
@@ -7788,6 +7856,7 @@ fn tracked_total_row(
         parent_pid: None,
         name: "Tracked Total".to_string(),
         executable_path: None,
+        compat_layer: None,
         start_time: None,
         cpu_percent: sum_optional_f64(tracked.iter().filter_map(|process| process.cpu_percent)),
         private_bytes: sum_optional_u64(tracked.iter().filter_map(|process| process.private_bytes)),

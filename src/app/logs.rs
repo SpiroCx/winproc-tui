@@ -447,6 +447,7 @@ fn parse_v3_process(
         parent_pid: None,
         name: definition.2.clone(),
         executable_path: definition.4.clone(),
+        compat_layer: None,
         start_time: definition.3,
         cpu_percent: floats[process_f64::CPU_PERCENT].filter(|value| value.is_finite()),
         private_bytes: integers[process_u64::PRIVATE_BYTES],
@@ -936,6 +937,7 @@ impl ProcessRecord {
                 .name
                 .ok_or_else(|| anyhow!("process is missing name"))?,
             executable_path: self.path,
+            compat_layer: None,
             start_time: self.start_time,
             cpu_percent: metrics.cpu_percent.filter(|value| value.is_finite()),
             private_bytes: metrics.private_bytes,

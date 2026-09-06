@@ -378,6 +378,7 @@ mod tests {
             parent_pid: None,
             name,
             executable_path,
+            compat_layer: None,
             start_time: Some(start_time),
             cpu_percent: None,
             private_bytes: None,

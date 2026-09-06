@@ -1391,6 +1391,7 @@ mod tests {
             parent_pid: None,
             name: name.to_string(),
             executable_path: Some(format!(r"C:\work\{name}")),
+            compat_layer: None,
             start_time: Some(1000 + pid as u64),
             cpu_percent: None,
             private_bytes,

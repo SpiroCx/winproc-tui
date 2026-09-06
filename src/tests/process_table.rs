@@ -958,8 +958,8 @@ fn process_table_overflow_indicator_handles_zero_or_no_hidden_metrics() {
 
     let narrow_buffer = render_app_to_buffer(&app, 35, 20);
     let narrow = buffer_to_text(&narrow_buffer);
-    assert!(narrow.contains("‹ 0/24 ›"), "{narrow}");
-    let (indicator_x, indicator_y) = find_text_position(&narrow_buffer, "‹ 0/24 ›")
+    assert!(narrow.contains("‹ 0/25 ›"), "{narrow}");
+    let (indicator_x, indicator_y) = find_text_position(&narrow_buffer, "‹ 0/25 ›")
         .expect("the zero-column indicator should render");
     app.on_mouse(
         left_click(indicator_x, indicator_y),
@@ -968,8 +968,8 @@ fn process_table_overflow_indicator_handles_zero_or_no_hidden_metrics() {
     assert!(!app.watch_enabled);
 
     let wide = render_app_to_text(&app, 400, 20);
-    assert!(!wide.contains("‹ 1–24/24 ›"), "{wide}");
-    assert!(!wide.contains("‹ 0/24 ›"), "{wide}");
+    assert!(!wide.contains("‹ 1–25/25 ›"), "{wide}");
+    assert!(!wide.contains("‹ 0/25 ›"), "{wide}");
 }
 
 #[test]
