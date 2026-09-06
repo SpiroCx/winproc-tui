@@ -1276,11 +1276,15 @@ fn format_process_column(process: &ProcessRow, column: MetricColumn, column_widt
             .io_write_bytes_per_sec
             .map(format_kb_per_sec)
             .unwrap_or_else(|| "--".to_string()),
-        MetricColumn::CompatLayer => process
-            .compat_layer
-            .as_deref()
-            .map(|value| compact_text_end(value, column_width as usize))
-            .unwrap_or_else(|| "--".to_string()),
+        MetricColumn::CompatLayer => {
+            let _ = column_width;
+            process
+                .compat_layer
+                .as_deref()
+                .filter(|value| value.to_ascii_lowercase().contains("admin"))
+                .map(|_| "Admin".to_string())
+                .unwrap_or_else(|| "--".to_string())
+        }
         MetricColumn::FullPath => process
             .executable_path
             .as_deref()
@@ -1295,18 +1299,6 @@ fn process_metric_alignment(column: MetricColumn) -> Alignment {
     } else {
         Alignment::Right
     }
-}
-
-fn compact_text_end(value: &str, width: usize) -> String {
-    if text_width(value) <= width {
-        return value.to_string();
-    }
-    let marker_width = text_width(TRUNCATION_MARKER);
-    if width < marker_width {
-        return String::new();
-    }
-    let head = prefix_to_width(value, width.saturating_sub(marker_width));
-    format!("{head}{TRUNCATION_MARKER}")
 }
 
 fn compact_path_start(path: &str, width: usize) -> String {

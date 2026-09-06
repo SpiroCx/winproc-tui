@@ -400,7 +400,9 @@ fn format_process_metric_column(process: &ProcessRow, column: MetricColumn) -> S
             .unwrap_or_else(|| "--".to_string()),
         MetricColumn::CompatLayer => process
             .compat_layer
-            .clone()
+            .as_deref()
+            .filter(|value| value.to_ascii_lowercase().contains("admin"))
+            .map(|_| "Admin".to_string())
             .unwrap_or_else(|| "--".to_string()),
         MetricColumn::FullPath => process
             .executable_path
