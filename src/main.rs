@@ -1,13 +1,16 @@
-use std::io::{self, Stdout};
+use std::io;
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{
+        EndSynchronizedUpdate, EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode,
+        enable_raw_mode,
+    },
 };
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::Terminal;
 
 mod app;
 mod cli;
@@ -16,6 +19,7 @@ mod model;
 mod platform;
 mod samplers;
 mod startup;
+mod terminal;
 mod ui;
 
 pub(crate) use app::App;
@@ -25,6 +29,7 @@ use config::{
     build_runtime_config, load_config, migrate_legacy_config, resolve_config_paths,
     write_app_config,
 };
+use terminal::{AppTerminal, buffered_backend};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -54,7 +59,7 @@ fn main() -> Result<()> {
 }
 
 fn run_application_session(
-    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    terminal: &mut AppTerminal,
     config_path: &std::path::Path,
     mut config: config::AppConfig,
 ) -> Result<()> {
@@ -89,27 +94,26 @@ fn with_terminal_session<S, T>(
     operation_result
 }
 
-fn setup_terminal(mouse_enabled: bool) -> Result<Terminal<CrosstermBackend<Stdout>>> {
+fn setup_terminal(mouse_enabled: bool) -> Result<AppTerminal> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     if mouse_enabled {
         execute!(stdout, EnableMouseCapture)?;
     }
-    let backend = CrosstermBackend::new(stdout);
+    let backend = buffered_backend(stdout);
     Terminal::new(backend).context("failed to create terminal")
 }
 
-fn restore_terminal(
-    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-    mouse_enabled: bool,
-) -> Result<()> {
+fn restore_terminal(terminal: &mut AppTerminal, mouse_enabled: bool) -> Result<()> {
+    let end_result = execute!(terminal.backend_mut(), EndSynchronizedUpdate);
     disable_raw_mode()?;
     if mouse_enabled {
         execute!(terminal.backend_mut(), DisableMouseCapture)?;
     }
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
+    end_result?;
     Ok(())
 }
 

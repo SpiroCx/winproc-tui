@@ -15,14 +15,16 @@ pub(crate) mod system_info;
 
 use std::{
     fs::File,
-    io::{BufWriter, Stdout, Write},
+    io::{BufWriter, Write},
     path::PathBuf,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
 use crossterm::event::{self, Event, MouseEvent, MouseEventKind};
-use ratatui::{Terminal, backend::CrosstermBackend, layout::Rect};
+use ratatui::layout::Rect;
+
+use crate::terminal::{AppTerminal, draw_frame};
 
 use crate::ui::{
     column_picker_page_size_for_screen, cpu_core_dialog_page_size_for_screen, draw,
@@ -78,10 +80,7 @@ pub(crate) use state::SampleFreshness;
 pub(crate) use state::VisibleProcessEntry;
 pub(crate) use state::VisibleProcessRow;
 
-pub(crate) fn run_tui(
-    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-    app: &mut App,
-) -> Result<()> {
+pub(crate) fn run_tui(terminal: &mut AppTerminal, app: &mut App) -> Result<()> {
     let mut last_tick = Instant::now();
     let mut screen_size = terminal.size()?;
     let mut dirty = true;
@@ -128,7 +127,7 @@ pub(crate) fn run_tui(
             sync_layout_state(app, Rect::new(0, 0, screen_size.width, screen_size.height));
             let trace_selected = app.process_table_state.selected();
             let trace_start = Instant::now();
-            terminal.draw(|frame| draw(frame, app))?;
+            draw_frame(terminal, |frame| draw(frame, app))?;
             if let Some(trace) = loop_trace.as_mut() {
                 trace.log(
                     "draw",

@@ -44,7 +44,7 @@ This is a runtime data-flow diagram, not a strict Rust dependency graph. `ui` re
 
 | Component | Responsibility |
 |---|---|
-| `main`, `cli`, `config`, `platform` | Process startup, single-instance enforcement, console control handling, terminal setup and restoration, CLI parsing, persistence, and small Windows helpers. |
+| `main`, `cli`, `config`, `platform`, `terminal` | Process startup, single-instance enforcement, console control handling, terminal setup, frame output and restoration, CLI parsing, persistence, and small Windows helpers. |
 | `app` | Main loop, application state, actions, navigation, recording, log loading, clipboard operations, and worker coordination. |
 | `model` | UI-independent snapshots, process and system values, identities, column and sorting definitions, and history containers. |
 | `samplers` | Collection through sysinfo, PDH, Win32, DXGI, .NET diagnostics IPC, and process-specific helpers; owns the sampling worker and runtime boundary. |
@@ -81,6 +81,8 @@ Access restrictions, process exit, unsupported hardware, and counter failures pr
 ### 3.4 Redraw only when visible state changes
 
 `run_tui` is dirty-driven. It draws after input, resize, an applicable worker result, or another visible state transition rather than continuously between events.
+
+Startup and the main UI share buffered terminal output and a synchronized-update boundary around each complete draw, including cursor updates. Supporting terminals present the completed frame together, so full-screen changes such as modal background dimming do not expose intermediate rows. Terminals that ignore synchronized updates still receive buffered output. A failed draw attempts to end the synchronized update before returning its error; terminal restoration also sends an end command.
 
 Display pause freezes only the visible state. Sampling, histories, freshness, and Recording continue in the background. Log view owns separate loaded state and does not support display pause.
 

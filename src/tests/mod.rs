@@ -26,4 +26,6 @@ mod summary_rendering;
 mod support;
 mod system_info;
 mod system_panels;
+mod terminal_output;
+mod terminal_performance;
 mod tracking_history;

@@ -1,10 +1,6 @@
-use std::io::Stdout;
-
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, MouseButton, MouseEventKind};
 use ratatui::{
-    Terminal,
-    backend::CrosstermBackend,
     layout::{Alignment, Margin, Rect},
     prelude::{Modifier, Style},
     text::{Line, Span},
@@ -13,6 +9,7 @@ use ratatui::{
 
 use crate::{
     config::{AppConfig, InvestigationStateConfig, SavedInvestigationProfile},
+    terminal::{AppTerminal, draw_frame},
     ui::{
         THEMES,
         footer::shortcut_spans,
@@ -70,7 +67,7 @@ impl StartupInvestigationChoice {
 }
 
 pub(crate) fn choose_startup_investigation(
-    terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    terminal: &mut AppTerminal,
     config: &mut AppConfig,
 ) -> Result<StartupOutcome> {
     let choices = startup_choices(config);
@@ -79,7 +76,9 @@ pub(crate) fn choose_startup_investigation(
     let mut offset = selected.saturating_sub(MAX_LIST_HEIGHT as usize - 1);
 
     loop {
-        terminal.draw(|frame| draw_startup_choice(frame, &choices, selected, offset, theme))?;
+        draw_frame(terminal, |frame| {
+            draw_startup_choice(frame, &choices, selected, offset, theme)
+        })?;
         let area = terminal.size()?;
         let screen = Rect::new(0, 0, area.width, area.height);
         let page_size = usize::from(startup_layout(screen, choices.len()).list.height).max(1);
