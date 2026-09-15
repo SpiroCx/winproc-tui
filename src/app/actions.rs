@@ -168,13 +168,8 @@ impl App {
                     _ => {}
                 },
                 InvestigationProfilesView::ConfirmLoad { .. } => match key.code {
-                    KeyCode::Esc | KeyCode::Enter => self.cancel_investigation_profile_subdialog(),
-                    KeyCode::Char(ch) if ch.eq_ignore_ascii_case(&'n') => {
-                        self.cancel_investigation_profile_subdialog()
-                    }
-                    KeyCode::Char(ch) if ch.eq_ignore_ascii_case(&'y') => {
-                        self.confirm_investigation_profile_action()
-                    }
+                    KeyCode::Esc => self.cancel_investigation_profile_subdialog(),
+                    KeyCode::Enter => self.confirm_investigation_profile_action(),
                     _ => {}
                 },
             }

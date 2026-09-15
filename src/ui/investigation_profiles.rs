@@ -313,7 +313,12 @@ fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, them
         area,
         "LOAD INVESTIGATION PROFILE?",
         &format!(
-            "This removes {} tracked name{}.",
+            "{} Removes {} tracked name{}.",
+            if pending.unsaved_changes {
+                "Replace unsaved changes?"
+            } else {
+                "Load profile?"
+            },
             pending.tracking_switch.removed_name_count,
             if pending.tracking_switch.removed_name_count == 1 {
                 ""
@@ -322,7 +327,7 @@ fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, them
             }
         ),
         &format!(
-            "{} older sample{} across {} name{} will be discarded.",
+            "{} older sample{} across {} name{} will be discarded.\nRemoved: {}",
             pending.tracking_switch.discarded_sample_count,
             if pending.tracking_switch.discarded_sample_count == 1 {
                 ""
@@ -334,9 +339,22 @@ fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, them
                 ""
             } else {
                 "s"
-            }
+            },
+            truncate(
+                &app.watch_list
+                    .iter()
+                    .filter(|name| !pending
+                        .profile
+                        .tracked_names
+                        .iter()
+                        .any(|target| name.eq_ignore_ascii_case(target)))
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                52
+            )
         ),
-        &[("Enter/Esc/n", "Cancel"), ("y", "Load")],
+        &[("Enter", "Load"), ("Esc", "Cancel")],
         theme,
     );
 }
@@ -363,7 +381,10 @@ fn draw_confirm(
         Paragraph::new(detail)
             .alignment(Alignment::Center)
             .style(Style::default().fg(theme.warning)),
-        row(content, 2),
+        Rect {
+            height: 2,
+            ..row(content, 2)
+        },
     );
     frame.render_widget(
         Paragraph::new(Line::from(warning_shortcut_spans(shortcuts, theme)))

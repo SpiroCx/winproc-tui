@@ -404,6 +404,8 @@ fn loading_a_profile_changes_only_the_tracking_list() {
     app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
         .unwrap();
 
+    app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+        .unwrap();
     assert!(app.investigation_profiles_dialog.is_none());
     assert_eq!(app.active_investigation_profile.as_deref(), Some("API"));
     assert_eq!(app.watch_list, ["api.exe"]);
@@ -602,7 +604,7 @@ fn profile_dialog_startup_mode_has_mouse_parity() {
 }
 
 #[test]
-fn profile_load_retained_history_confirmation_keeps_its_existing_keys() {
+fn profile_load_retained_history_confirmation_uses_enter_and_escape() {
     let mut app = make_test_app(1, 10);
     track_process_name(&mut app, "old.exe");
     record_tracked_process_history_samples(&mut app, "old.exe", 180);
@@ -621,16 +623,10 @@ fn profile_load_retained_history_confirmation_keeps_its_existing_keys() {
     assert_eq!(app.watch_list, ["old.exe"]);
 
     let rendered = render_app_to_text(&app, 100, 45);
-    assert!(
-        rendered.contains("Enter/Esc/n Cancel  y Load"),
-        "{rendered}"
-    );
+    assert!(rendered.contains("Enter Load  Esc Cancel"), "{rendered}");
 
-    for key in [
-        KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
-        KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE),
-        KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-    ] {
+    {
+        let key = KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE);
         app.on_key(key).unwrap();
         assert!(matches!(
             app.investigation_profiles_view(),
@@ -644,7 +640,7 @@ fn profile_load_retained_history_confirmation_keeps_its_existing_keys() {
         ));
     }
 
-    app.on_key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))
+    app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
         .unwrap();
 
     assert_eq!(app.watch_list, ["new.exe"]);
@@ -732,4 +728,42 @@ fn ctrl_t_opens_profiles_and_save_load_are_rejected_outside_live() {
     assert!(app.status.contains("Recording"));
     app.stop_recording().unwrap();
     let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn reopening_a_modified_profile_confirms_and_cancel_preserves_changes() {
+    for history in [0, 191] {
+        let mut app = make_test_app(1, 10);
+        app.runtime.saved_investigation_profiles = vec![profile("Saved")];
+        app.active_investigation_profile = Some("Saved".to_string());
+        app.watch_list = vec!["proc-0".to_string(), "worker.exe".to_string()];
+        record_tracked_process_history_samples(&mut app, "worker.exe", history);
+        app.open_investigation_profiles();
+        app.load_selected_investigation_profile();
+        assert!(matches!(
+            app.investigation_profiles_view(),
+            Some(InvestigationProfilesView::ConfirmLoad { .. })
+        ));
+        let text = render_app_to_text(&app, 120, 60);
+        assert!(text.contains("Replace unsaved changes?"));
+        assert!(text.contains("worker.exe"));
+        app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+            .unwrap();
+        assert_eq!(app.watch_list, ["proc-0", "worker.exe"]);
+        app.load_selected_investigation_profile();
+        app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
+            .unwrap();
+        assert_eq!(app.watch_list, ["proc-0"]);
+        assert!(app.investigation_profiles_dialog.is_none());
+    }
+}
+
+#[test]
+fn equivalent_tracking_names_do_not_prompt_when_opening_a_profile() {
+    let mut app = make_test_app(1, 10);
+    app.watch_list = vec!["PROC-0".to_string()];
+    app.runtime.saved_investigation_profiles = vec![profile("Saved")];
+    app.open_investigation_profiles();
+    app.load_selected_investigation_profile();
+    assert!(app.investigation_profiles_dialog.is_none());
 }

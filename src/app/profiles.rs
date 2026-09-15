@@ -13,6 +13,7 @@ pub(crate) enum ProfileNameInputPurpose {
 pub(crate) struct PendingInvestigationProfileLoad {
     pub(crate) profile: SavedInvestigationProfile,
     pub(crate) tracking_switch: PendingTrackedListSwitch,
+    pub(crate) unsaved_changes: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -523,17 +524,31 @@ impl App {
             return;
         };
         let tracking_switch = self.prepare_tracked_list_switch(profile.tracked_names.clone());
+        let current: std::collections::HashSet<_> = self
+            .watch_list
+            .iter()
+            .map(|name| name.to_ascii_lowercase())
+            .collect();
+        let target: std::collections::HashSet<_> = profile
+            .tracked_names
+            .iter()
+            .map(|name| name.to_ascii_lowercase())
+            .collect();
+        let unsaved_changes = current != target
+            && self.active_investigation_profile_dirty()
+            && (!current.is_empty() || self.active_investigation_profile.is_some());
         let pending = PendingInvestigationProfileLoad {
             profile,
             tracking_switch,
+            unsaved_changes,
         };
-        if pending.tracking_switch.discarded_sample_count > 0 {
+        if pending.unsaved_changes || pending.tracking_switch.discarded_sample_count > 0 {
             if let Some(dialog) = self.investigation_profiles_dialog.as_mut() {
                 dialog.view = InvestigationProfilesView::ConfirmLoad {
                     pending: Box::new(pending),
                 };
             }
-            self.status = "Loading this profile will discard older samples".to_string();
+            self.status = "Confirm replacing the current Tracking List".to_string();
         } else {
             self.apply_investigation_profile_load(pending);
         }
@@ -561,6 +576,7 @@ impl App {
         let PendingInvestigationProfileLoad {
             profile,
             tracking_switch,
+            ..
         } = pending;
         self.apply_tracked_list_switch(tracking_switch);
         self.active_investigation_profile = Some(profile.name.clone());

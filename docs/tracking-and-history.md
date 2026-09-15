@@ -88,3 +88,5 @@ Starting a Recording copies the working Tracking List into session-owned scope. 
 - Ordinary Live history must retain at most two complete generations per case-insensitive process name.
 - Concurrently live identities and explicit paused-display, Graph, or Process Info references must remain inspectable even when they exceed the ordinary generation limit.
 - A paused Ghost Row, registered process Graph, or open Process Info target must remain inspectable even when its identity would otherwise age out.
+
+Opening a Profile also confirms before replacing unsaved tracked-name changes, including reopening the active Profile. The same confirmation describes any retained-history removal; cancellation preserves the list, binding, and histories. Equivalent case-insensitive name sets do not prompt.
