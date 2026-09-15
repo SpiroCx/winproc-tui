@@ -562,8 +562,8 @@ fn header_and_footer_roles_apply_to_all_color_schemes() {
         assert_eq!(buffer[(live_x, live_y)].fg, theme.background);
         assert_eq!(buffer[(live_x, live_y)].bg, theme.active_series);
 
-        let (shortcut_x, shortcut_y) =
-            find_text_position(&buffer, "c Columns").expect("process shortcut should be rendered");
+        let (shortcut_x, shortcut_y) = find_text_position(&buffer, "Space Graph")
+            .expect("process shortcut should be rendered");
         assert_eq!(buffer[(shortcut_x, shortcut_y)].fg, theme.key_hint);
     }
 }

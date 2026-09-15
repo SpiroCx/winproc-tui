@@ -4500,7 +4500,7 @@ impl App {
 
     #[cfg(test)]
     pub(crate) fn add_selected_process_to_watch_list(&mut self) {
-        if self.reject_tracking_list_change_while_recording() {
+        if self.reject_tracking_list_change() {
             return;
         }
         let Some(name) = self.selected_visible_process_name() else {
@@ -4521,7 +4521,7 @@ impl App {
     }
 
     fn toggle_process_name_tracking(&mut self, name: String) {
-        if self.reject_tracking_list_change_while_recording() {
+        if self.reject_tracking_list_change() {
             return;
         }
 
@@ -4553,7 +4553,7 @@ impl App {
     }
 
     pub(crate) fn confirm_tracked_remove(&mut self) {
-        if self.reject_tracking_list_change_while_recording() {
+        if self.reject_tracking_list_change() {
             self.reset_tracked_remove_confirmation();
             return;
         }
@@ -4596,7 +4596,7 @@ impl App {
 
     #[cfg(test)]
     pub(crate) fn remove_selected_process_from_watch_list(&mut self) {
-        if self.reject_tracking_list_change_while_recording() {
+        if self.reject_tracking_list_change() {
             return;
         }
         let Some(name) = self.selected_visible_process_name() else {
@@ -4622,14 +4622,19 @@ impl App {
         };
     }
 
-    pub(crate) fn reject_tracking_list_change_while_recording(&mut self) -> bool {
-        if self.activity() != AppActivity::Recording {
-            return false;
+    pub(crate) fn reject_tracking_list_change(&mut self) -> bool {
+        match self.activity() {
+            AppActivity::Live => false,
+            AppActivity::Recording => {
+                self.show_recording_tracking_fixed = true;
+                self.status = "Tracking List is fixed while recording".to_string();
+                true
+            }
+            AppActivity::LogView => {
+                self.status = "Return to Live before changing the Tracking List".to_string();
+                true
+            }
         }
-
-        self.show_recording_tracking_fixed = true;
-        self.status = "Tracking List is fixed while recording".to_string();
-        true
     }
 
     pub(crate) fn prepare_tracked_list_switch(
@@ -4664,7 +4669,7 @@ impl App {
     }
 
     pub(crate) fn apply_tracked_list_switch(&mut self, pending: PendingTrackedListSwitch) {
-        if self.reject_tracking_list_change_while_recording() {
+        if self.reject_tracking_list_change() {
             return;
         }
         let target_normalized = normalized_process_names(&pending.target_processes);

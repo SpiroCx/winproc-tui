@@ -2,9 +2,13 @@ use super::support::{
     add_test_graph, buffer_to_text, find_text_position, make_test_app, make_test_app_with_worker,
     record_tracked_process_history_samples, render_app_to_buffer, render_app_to_text,
     selected_process_history_sample_count, test_snapshot, track_process_name,
+    unique_recording_path,
 };
 use crate::app;
-use crate::app::{DetailsMetric, FocusedPanel, GraphSlot, ProcessViewMode, VisibleProcessEntry};
+use crate::app::{
+    AppActivity, DetailsMetric, FocusedPanel, GraphSlot, ProcessViewMode, ResourcePanel,
+    VisibleProcessEntry,
+};
 use crate::model;
 use crate::model::{ColumnPreset, ProcessIdentity};
 use crate::samplers::{CollectSnapshotResult, SamplingWorker};
@@ -135,6 +139,135 @@ fn shift_t_toggles_tracked_only_when_processes_are_focused() {
 
     assert!(!app.watch_enabled);
     assert_eq!(app.visible_process_count(), 2);
+}
+
+#[test]
+fn shift_t_works_in_every_main_panel_and_activity_without_changing_tracking_scope() {
+    for activity in [
+        AppActivity::Live,
+        AppActivity::Recording,
+        AppActivity::LogView,
+    ] {
+        let mut app = make_test_app(2, 10);
+        track_process_name(&mut app, "proc-0");
+        add_test_graph(&mut app, 0);
+        let path = unique_recording_path("global-tracked-only");
+        if activity == AppActivity::Recording {
+            app.recording_path_draft = path.display().to_string();
+            app.show_recording_path_dialog = true;
+            app.confirm_recording_path().unwrap();
+        } else if activity == AppActivity::LogView {
+            app.log_view_path = Some(path.clone());
+        }
+        let graphs = app.graph_entries.clone();
+        let active = app.active_graph_id;
+        for (panel, resource) in [
+            (FocusedPanel::System, ResourcePanel::Memory),
+            (FocusedPanel::System, ResourcePanel::Gpu),
+            (FocusedPanel::SystemActivity, ResourcePanel::Memory),
+            (FocusedPanel::Cpu, ResourcePanel::Memory),
+            (FocusedPanel::Processes, ResourcePanel::Memory),
+            (FocusedPanel::DetailsGraph, ResourcePanel::Memory),
+            (FocusedPanel::DetailsSamples, ResourcePanel::Memory),
+        ] {
+            app.focused_panel = panel;
+            app.resource_panel = resource;
+            for key in [
+                KeyEvent::new(KeyCode::Char('T'), KeyModifiers::SHIFT),
+                KeyEvent::new(KeyCode::Char('t'), KeyModifiers::SHIFT),
+                KeyEvent::new(KeyCode::Char('T'), KeyModifiers::NONE),
+            ] {
+                let before = app.watch_enabled;
+                app.on_key(key).unwrap();
+                assert_ne!(
+                    app.watch_enabled, before,
+                    "{activity:?} {panel:?} {resource:?}"
+                );
+                assert_eq!(app.watch_list, vec!["proc-0"]);
+                assert_eq!(app.focused_panel, panel);
+                assert_eq!(app.resource_panel, resource);
+                assert_eq!(app.graph_entries, graphs);
+                assert_eq!(app.active_graph_id, active);
+                assert_eq!(app.activity(), activity);
+                let rendered = render_app_to_text(&app, 120, 60);
+                assert!(
+                    rendered
+                        .lines()
+                        .last()
+                        .unwrap()
+                        .contains("Shift+T Tracked-only")
+                );
+            }
+        }
+        if activity == AppActivity::Recording {
+            app.stop_recording().unwrap();
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[test]
+fn shift_t_preserves_modal_and_text_input_ownership() {
+    let mut app = make_test_app(2, 10);
+    app.show_help = true;
+    app.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::SHIFT))
+        .unwrap();
+    assert!(app.show_help);
+    assert!(!app.watch_enabled);
+    app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+        .unwrap();
+
+    app.on_key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::CONTROL))
+        .unwrap();
+    app.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::SHIFT))
+        .unwrap();
+    assert!(app.is_filter_editing());
+    assert_eq!(app.filter_draft, "T");
+    assert!(!app.watch_enabled);
+    app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+        .unwrap();
+
+    app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+        .unwrap();
+    app.on_key(KeyEvent::new(KeyCode::Char('T'), KeyModifiers::SHIFT))
+        .unwrap();
+    assert!(app.is_main_menu_open());
+    assert!(!app.watch_enabled);
+}
+
+#[test]
+fn log_view_tracking_inputs_and_pending_changes_preserve_live_history() {
+    let mut app = make_test_app(1, 10);
+    track_process_name(&mut app, "proc-0");
+    record_tracked_process_history_samples(&mut app, "proc-0", 191);
+    let pending = app.prepare_tracked_list_switch(Vec::new());
+    app.on_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::NONE))
+        .unwrap();
+    assert!(app.show_tracked_remove_confirmation);
+
+    app.log_view_path = Some(std::path::PathBuf::from("recorded.log"));
+    app.confirm_tracked_remove();
+    assert!(!app.show_tracked_remove_confirmation);
+    app.apply_tracked_list_switch(pending);
+    app.selected_process_column_index = 0;
+    for key in [KeyCode::Char('t'), KeyCode::Char(' ')] {
+        app.on_key(KeyEvent::new(key, KeyModifiers::NONE)).unwrap();
+        assert!(!app.show_tracked_remove_confirmation);
+    }
+    let identity = app.visible_process_identity_at(0).unwrap();
+    let now = std::time::Instant::now();
+    app.register_process_tracking_cell_click(identity.clone(), model::SortColumn::ProcessName, now);
+    app.register_process_tracking_cell_click(identity, model::SortColumn::ProcessName, now);
+
+    assert_eq!(app.watch_list, vec!["proc-0"]);
+    assert_eq!(selected_process_history_sample_count(&app, "proc-0"), 191);
+    assert!(!app.show_tracked_remove_confirmation);
+    assert!(!app.show_recording_tracking_fixed);
+    let rendered = render_app_to_text(&app, 260, 60);
+    let footer = rendered.lines().last().unwrap();
+    assert!(!footer.contains("t Track"));
+    assert!(!footer.contains("Space Track"));
+    assert!(footer.contains("Shift+T Tracked-only"));
 }
 
 #[test]

@@ -62,7 +62,6 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                     },
                 ),
                 ("t", "Track"),
-                ("Shift+T", "Tracked-only"),
                 ("c", "Columns"),
                 ("w/W", "Width"),
                 ("s", "Sort"),
@@ -120,13 +119,11 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
             items.insert(view_index + 1, ("e", "Expand/Collapse"));
         }
     }
+    if app.activity() != AppActivity::Live && app.focused_panel == FocusedPanel::Processes {
+        let identity_column_selected = app.selected_process_column_toggles_tracking();
+        items.retain(|(key, _)| *key != "t" && !(identity_column_selected && *key == "Space"));
+    }
     if app.activity() == AppActivity::Recording {
-        if app.focused_panel == FocusedPanel::Processes {
-            let identity_column_selected = app.selected_process_column_toggles_tracking();
-            items.retain(|(key, _)| {
-                *key != "t" && *key != "Ctrl+T" && !(identity_column_selected && *key == "Space")
-            });
-        }
         items.insert(0, ("Ctrl+R", "Stop"));
     }
     if app.activity() == AppActivity::LogView {
@@ -145,6 +142,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
     if app.activity() == AppActivity::Live {
         items.push(("Ctrl+S", "Save Profile"));
     }
+    items.push(("Shift+T", "Tracked-only"));
     items.push(("Ctrl+T", "Profiles"));
     items.push(("F12", "Color"));
     items.push(("F1/?", "Help"));
@@ -159,6 +157,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         Some("Tab"),
         primary_key,
         Some("Ctrl+P"),
+        Some("Shift+T"),
         Some("Ctrl+T"),
     ]
     .into_iter()

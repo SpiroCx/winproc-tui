@@ -14,6 +14,8 @@ This document defines how `winproc-tui` represents investigation state, tracking
 | Tracked-only | A global display preference; it is not inferred from whether the working Tracking List is empty. |
 | Ghost Row | The newest exited identity retained for a tracked name so its final values and history remain inspectable. |
 
+Tracking List edits are available only in Live. Recording and Log view reject direct edits and pending list changes before they can modify the working list or prune Live history. Tracked-only remains a display preference available from every main panel in all three activities; modal dialogs and text editing retain their own input handling.
+
 Tracking intent uses process names because PIDs change across restarts and one name can have several live instances. Histories, selections, Process Info targets, and process Graphs use full `ProcessIdentity` values so a reused PID or restarted process never inherits another lifetime's samples.
 
 System history is independent from Tracking Lists. MEM, GPU, System Activity, and aggregate CPU histories are retained without registering a process name.

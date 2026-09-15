@@ -69,6 +69,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Shift+T",
+        label: "Toggle Tracked-only (any main panel)",
+    },
+    HelpItem {
         key: "q",
         label: "Quit",
     },
@@ -169,7 +173,7 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Space",
-        label: "Track Process/PID or toggle metric Graph",
+        label: "Track Process/PID (Live) / metric Graph",
     },
     HelpItem {
         key: "s",
@@ -347,10 +351,6 @@ const TRACKING_ROWS: &[HelpItem] = &[
         label: "Track / Untrack selected process (Live only)",
     },
     HelpItem {
-        key: "Shift+T",
-        label: "Toggle Tracked-only",
-    },
-    HelpItem {
         key: "Ctrl+T",
         label: "Open an Investigation Profile",
     },
@@ -496,7 +496,7 @@ const MOUSE_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Double-click Process/PID",
-        label: "Track / Untrack process",
+        label: "Track / Untrack process (Live only)",
     },
     HelpItem {
         key: "Click Graph nav/card",

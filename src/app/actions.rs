@@ -794,7 +794,7 @@ impl App {
             self.open_investigation_profiles();
             return Ok(());
         }
-        if self.focused_panel == FocusedPanel::Processes && is_shift_t(key) {
+        if is_shift_t(key) {
             self.toggle_watch_list();
             return Ok(());
         }

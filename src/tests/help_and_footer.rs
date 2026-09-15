@@ -57,7 +57,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
     let mut app = make_test_app(3, 10);
     app.show_help = true;
 
-    let rendered = render_app_to_text(&app, 150, 70);
+    let rendered = render_app_to_text(&app, 150, 72);
     let rendered_lower = rendered.to_ascii_lowercase();
 
     assert!(
@@ -73,6 +73,10 @@ fn help_dialog_buffer_shows_two_column_layout() {
         "{rendered}"
     );
     assert!(rendered.contains("Global  (any focus)"), "{rendered}");
+    assert!(
+        rendered.contains("Toggle Tracked-only (any main panel)"),
+        "{rendered}"
+    );
     assert!(rendered.contains("Processes"), "{rendered}");
     assert!(rendered.contains("Toggle Flat / Tree view"), "{rendered}");
     assert!(
@@ -478,7 +482,7 @@ fn footer_shortcuts_follow_the_focused_panel() {
 
     assign_private_graph(&mut app);
     app.focused_panel = FocusedPanel::DetailsGraph;
-    let graph = render_app_to_text(&app, 260, 45);
+    let graph = render_app_to_text(&app, 300, 45);
     assert!(graph.contains("↑/↓ Slot"), "{graph}");
     assert!(graph.contains("←/→ Sample"), "{graph}");
     assert!(!graph.contains("Prev Slot"), "{graph}");
@@ -493,7 +497,7 @@ fn footer_shortcuts_follow_the_focused_panel() {
     assert!(graph.contains("Shift+A/B Jump A/B"), "{graph}");
 
     app.focused_panel = FocusedPanel::DetailsSamples;
-    let samples = render_app_to_text(&app, 260, 45);
+    let samples = render_app_to_text(&app, 300, 45);
     assert!(samples.contains("↑/← Older"), "{samples}");
     assert!(samples.contains("↓/→ Newer"), "{samples}");
     assert!(samples.contains("Del Remove Graph"), "{samples}");

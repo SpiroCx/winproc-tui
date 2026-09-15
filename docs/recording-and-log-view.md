@@ -81,6 +81,8 @@ The loader retains the session interval and complete frame-time sequence so Log 
 
 Log view is not frame playback. Processes shows the final process snapshot, while Graphs, Samples, Process Info, and A/B comparison inspect histories reconstructed from all complete frames.
 
+Log view does not allow Tracking List edits or pruning of the hidden Live history. Tracked-only filtering remains available and does not change the Live Tracking List or recorded tracking scope.
+
 Loaded histories are not pruned to Live-history capacities. Missing process or metric intervals remain gaps rather than being connected or replaced with nearby values. Process-specific live collectors remain disabled as described in [Process Investigation](process-investigation.md).
 
 ## Invariants
