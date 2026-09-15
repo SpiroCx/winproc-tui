@@ -182,3 +182,7 @@ When behavior changes, update its canonical owner:
 | Schema-v3 record shape | [`schemas/recording-v3-line.schema.json`](schemas/recording-v3-line.schema.json) and [metrics.md](metrics.md) |
 | Release, Scoop, and Windows Package Manager publication | [release-workflow.md](release-workflow.md) |
 | Agent workflow and regression rules | [AGENTS.md](../AGENTS.md) |
+
+### Action feedback
+
+The existing footer boundary displays the latest action result or status without adding layout height. Normal successful samples do not replace it; errors still use their persistent dialogs where required. Dialogs also explain activity restrictions at the point of action and omit unavailable action shortcuts. Clipboard feedback describes the operation, never the copied Environment value.

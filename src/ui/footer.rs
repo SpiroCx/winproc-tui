@@ -20,6 +20,14 @@ pub(crate) fn draw_footer(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App,
     .block(
         Block::default()
             .borders(Borders::TOP)
+            .title(Line::from(Span::styled(
+                if app.status == "Ready" {
+                    ""
+                } else {
+                    app.status.as_str()
+                },
+                Style::default().fg(theme.text),
+            )))
             .border_style(Style::default().fg(theme.border))
             .style(Style::default().bg(theme.background)),
     );

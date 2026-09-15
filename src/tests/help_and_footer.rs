@@ -390,7 +390,7 @@ fn footer_shows_process_context_on_one_row() {
     assert!(rendered.contains("F12 Color"), "{rendered}");
     assert!(rendered.contains("F1/? Help"), "{rendered}");
     assert!(!rendered.contains("Status  "), "{rendered}");
-    assert!(!rendered.contains("Copied row: proc-0"), "{rendered}");
+    assert!(rendered.contains("Copied row: proc-0"), "{rendered}");
     assert!(!rendered.contains("Up/Down Row"), "{rendered}");
     assert!(!rendered.contains("Left/Right Column"), "{rendered}");
     assert!(!rendered.contains("Ctrl+R Record"), "{rendered}");
@@ -631,4 +631,19 @@ fn help_dialog_takes_focus_border_from_previous_panel() {
         buffer[(process_table.x, process_table.y)].fg,
         app.theme().border
     );
+}
+
+#[test]
+fn action_feedback_is_visible_without_adding_footer_height() {
+    let mut app = make_test_app(1, 10);
+    for message in [
+        "Copied environment variable",
+        "Return to Live before changing the Tracking List",
+        "Recording stopped",
+    ] {
+        app.status = message.to_string();
+        let text = render_app_to_text(&app, 120, 60);
+        assert!(text.lines().nth(58).unwrap().contains(message), "{text}");
+        assert!(text.lines().last().unwrap().contains("F1/? Help"));
+    }
 }

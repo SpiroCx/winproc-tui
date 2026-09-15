@@ -7,7 +7,7 @@ use ratatui::{
 
 use crate::{
     App,
-    app::{InvestigationProfilesView, ProfileNameInputPurpose},
+    app::{AppActivity, InvestigationProfilesView, ProfileNameInputPurpose},
     config::InvestigationStartup,
     ui::{
         Theme,
@@ -80,8 +80,16 @@ fn draw_browse(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: The
     frame.render_widget(Clear, popup);
     frame.render_widget(block, popup);
     frame.render_widget(
-        Paragraph::new("Select a profile, then press Enter to open it.")
-            .style(Style::default().fg(theme.text)),
+        Paragraph::new(match app.activity() {
+            AppActivity::Live => "Select a profile, then press Enter to open it.",
+            AppActivity::Recording => {
+                "Stop Recording to open a profile. Rename and Delete remain available."
+            }
+            AppActivity::LogView => {
+                "Return to Live to open a profile. Rename and Delete remain available."
+            }
+        })
+        .style(Style::default().fg(theme.text)),
         row(content, INTRO_ROW),
     );
 
@@ -172,16 +180,16 @@ fn draw_browse(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: The
         );
     }
 
+    let mut shortcuts = vec![("↑/↓", "Select")];
+    if count > 0 {
+        if app.activity() == AppActivity::Live {
+            shortcuts.push(("Enter", "Open"));
+        }
+        shortcuts.push(("Delete", "Delete"));
+    }
+    shortcuts.push(("Esc", "Close"));
     frame.render_widget(
-        Paragraph::new(Line::from(shortcut_spans(
-            &[
-                ("↑/↓", "Select"),
-                ("Enter", "Open"),
-                ("Delete", "Delete"),
-                ("Esc", "Close"),
-            ],
-            theme,
-        ))),
+        Paragraph::new(Line::from(shortcut_spans(&shortcuts, theme))),
         row(content, layout.shortcut_row),
     );
 }
