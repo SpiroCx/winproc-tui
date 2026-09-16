@@ -1333,6 +1333,14 @@ impl App {
             KeyCode::Char('x') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.clear_ab_comparison_with_status();
             }
+            KeyCode::Char(ch)
+                if ch.eq_ignore_ascii_case(&'a')
+                    && key.modifiers == KeyModifiers::CONTROL
+                    && self.focused_panel == FocusedPanel::Processes
+                    && self.watch_enabled =>
+            {
+                self.select_all_visible_processes();
+            }
             KeyCode::Char(' ')
                 if self.focused_panel == FocusedPanel::Processes
                     && key.modifiers.contains(KeyModifiers::CONTROL)

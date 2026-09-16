@@ -1478,3 +1478,101 @@ fn multi_selection_markers_survive_cursor_movement_and_are_pruned_by_filter() {
     app.push_filter_char('~');
     assert!(app.selected_process_identities.is_empty());
 }
+
+#[test]
+fn tracked_only_ctrl_a_selects_all_pages_without_moving_cursor() {
+    let mut app = make_test_app(7, 2);
+    for row in &mut app.snapshot.processes[..6] {
+        row.name = "tracked.exe".to_string();
+    }
+    track_process_name(&mut app, "tracked.exe");
+    app.select_process_index(3);
+    app.ensure_selected_row_visible();
+    let cursor = app.selected_visible_process_identity();
+    let offset = app.process_table_state.offset();
+    assert!(offset > 0);
+    let expected = app.snapshot.processes[..6]
+        .iter()
+        .map(model::ProcessIdentity::from_row)
+        .collect::<std::collections::HashSet<_>>();
+
+    for ch in ['a', 'A'] {
+        app.on_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::CONTROL))
+            .unwrap();
+        assert_eq!(app.selected_process_identities, expected);
+        assert_eq!(app.selected_visible_process_identity(), cursor);
+        assert_eq!(app.process_selection_anchor, cursor);
+        assert_eq!(app.process_table_state.selected(), Some(3));
+        assert_eq!(app.process_table_state.offset(), offset);
+        assert_eq!(app.status, "Selected 6 live process rows");
+    }
+    let rendered = render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("6 selected (*)"), "{rendered}");
+    assert!(app.request_process_kill_confirmation());
+    assert_eq!(
+        app.process_kill_targets
+            .iter()
+            .map(|target| target.identity.clone())
+            .collect::<std::collections::HashSet<_>>(),
+        expected
+    );
+    app.cancel_process_kill_confirmation();
+    app.on_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL))
+        .unwrap();
+    assert_eq!(app.selected_process_identities.len(), 5);
+    assert!(!app.selected_process_identities.contains(&cursor.unwrap()));
+}
+
+#[test]
+fn tracked_only_ctrl_a_respects_filter_and_handles_empty_results() {
+    let mut app = make_test_app(2, 10);
+    app.watch_list = vec!["proc-0".to_string(), "proc-1".to_string()];
+    app.normalized_watch_names = app.watch_list.iter().cloned().collect();
+    app.watch_enabled = true;
+    app.filter_text = "proc-1".to_string();
+    app.rebuild_visible_process_cache();
+    app.clamp_process_table_state();
+    app.on_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL))
+        .unwrap();
+    assert_eq!(
+        app.selected_process_identities,
+        std::collections::HashSet::from([model::ProcessIdentity::from_row(
+            &app.snapshot.processes[1]
+        )])
+    );
+
+    app.filter_text = "missing".to_string();
+    app.rebuild_visible_process_cache();
+    app.clamp_process_table_state();
+    app.on_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL))
+        .unwrap();
+    assert!(app.selected_process_identities.is_empty());
+    assert_eq!(app.status, "No live process rows selected");
+    assert!(render_app_to_text(&app, 120, 60).contains("Tracked Total"));
+}
+
+#[test]
+fn ctrl_a_requires_tracked_only_process_focus_without_input_or_modal() {
+    for context in 0..6 {
+        let mut app = make_test_app(2, 10);
+        for row in &mut app.snapshot.processes {
+            row.name = "tracked.exe".to_string();
+        }
+        track_process_name(&mut app, "tracked.exe");
+        app.on_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL))
+            .unwrap();
+        match context {
+            0 => app.watch_enabled = false,
+            1 => app.focused_panel = FocusedPanel::System,
+            2 => app.show_help = true,
+            3 => app.begin_filter_edit(),
+            4 => app.begin_process_jump_edit(),
+            5 => app.show_quit_confirmation = true,
+            _ => unreachable!(),
+        }
+        let before = app.selected_process_identities.clone();
+        app.on_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL))
+            .unwrap();
+        assert_eq!(app.selected_process_identities, before, "context {context}");
+    }
+}

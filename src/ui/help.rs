@@ -176,6 +176,10 @@ const PROCESSES_ROWS: &[HelpItem] = &[
         label: "Move cursor only",
     },
     HelpItem {
+        key: "Ctrl+A (Tracked-only)",
+        label: "Select all listed process rows",
+    },
+    HelpItem {
         key: "Ctrl+Space",
         label: "Toggle row selection",
     },

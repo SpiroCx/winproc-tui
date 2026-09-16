@@ -97,6 +97,21 @@ impl App {
         }
     }
 
+    pub(crate) fn select_all_visible_processes(&mut self) {
+        self.selected_process_identities = self
+            .visible_process_entries
+            .iter()
+            .filter_map(|entry| self.live_identity_for_visible_entry(entry))
+            .collect();
+        self.process_selection_anchor = self.selected_live_process_identity();
+        let count = self.selected_process_identities.len();
+        self.status = if count == 0 {
+            "No live process rows selected".to_string()
+        } else {
+            format!("Selected {count} live process rows")
+        };
+    }
+
     fn apply_process_selection_range(
         &mut self,
         anchor: Option<crate::model::ProcessIdentity>,

@@ -164,6 +164,11 @@ fn help_dialog_buffer_shows_two_column_layout() {
 
     assert!(rendered.contains("Select row range"), "{rendered}");
     assert!(rendered.contains("Toggle row selection"), "{rendered}");
+    assert!(rendered.contains("Ctrl+A (Tracked-only)"), "{rendered}");
+    assert!(
+        rendered.contains("Select all listed process rows"),
+        "{rendered}"
+    );
     assert!(
         rendered.contains("Cursor position within highlighted rows"),
         "{rendered}"
@@ -751,4 +756,23 @@ fn compact_resource_tabs_share_drawing_and_click_targets() {
     let wide = render_app_to_text(&app, 300, 60);
     assert!(!wide.contains("[MEM]"));
     assert!(wide.contains("GPU"));
+}
+
+#[test]
+fn footer_advertises_ctrl_a_only_for_tracked_only_processes() {
+    for (tracked_only, focused_panel, expected) in [
+        (true, FocusedPanel::Processes, true),
+        (false, FocusedPanel::Processes, false),
+        (true, FocusedPanel::System, false),
+    ] {
+        let mut app = make_test_app(2, 10);
+        app.watch_enabled = tracked_only;
+        app.focused_panel = focused_panel;
+        let buffer = render_app_to_buffer(&app, 120, 60);
+        let footer = Rect::new(0, 59, 120, 1);
+        assert_eq!(
+            find_text_position_in_area(&buffer, footer, "Ctrl+A Select all").is_some(),
+            expected
+        );
+    }
 }

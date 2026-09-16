@@ -556,3 +556,51 @@ fn deep_tree_preserves_name_width_and_disclosure_target() {
     assert_eq!(app.visible_process_count(), 15);
     assert!(render_app_to_text(&app, 120, 60).contains("branch-14.exe"));
 }
+
+#[test]
+fn tracked_only_ctrl_a_excludes_collapsed_descendants_and_ghost_rows() {
+    let mut app = make_tree_app();
+    app.watch_list = app
+        .snapshot
+        .processes
+        .iter()
+        .map(|row| row.name.clone())
+        .collect();
+    app.normalized_watch_names = app.watch_list.iter().cloned().collect();
+    app.watch_enabled = true;
+    let root = app
+        .snapshot
+        .processes
+        .iter()
+        .find(|row| row.pid == 10)
+        .unwrap()
+        .clone();
+    app.collapsed_process_identities
+        .insert(ProcessIdentity::from_row(&root));
+    let mut ghost = root;
+    ghost.pid = 99;
+    app.exited_tracked_rows.insert(
+        ProcessIdentity::from_row(&ghost),
+        ExitedTrackedRow {
+            process: ghost,
+            exited_at: app.snapshot.captured_at,
+        },
+    );
+    app.rebuild_visible_process_cache();
+    app.clamp_process_table_state();
+    assert_eq!(app.visible_process_count(), 4);
+
+    app.on_key(KeyEvent::new(KeyCode::Char('a'), KeyModifiers::CONTROL))
+        .unwrap();
+
+    assert_eq!(
+        app.selected_process_identities
+            .iter()
+            .map(|identity| identity.pid)
+            .collect::<HashSet<_>>(),
+        HashSet::from([10, 40, 50])
+    );
+    let rendered = render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("3 selected (*)"), "{rendered}");
+    assert!(rendered.contains("Tracked Total"), "{rendered}");
+}

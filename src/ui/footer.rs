@@ -124,6 +124,9 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
             ]
         }
     };
+    if app.focused_panel == FocusedPanel::Processes && app.watch_enabled {
+        items.push(("Ctrl+A", "Select all"));
+    }
     let primary_key = items.first().map(|(key, _)| *key);
     if app.can_adjust_process_panel_height() {
         items.insert(0, ("h/H/Alt+H", "Height"));
@@ -176,6 +179,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         app.is_display_paused().then_some("Ctrl+P"),
         Some("Tab"),
         primary_key,
+        Some("Ctrl+A"),
         Some("Ctrl+B"),
         (!app.selected_process_identities.is_empty()).then_some("d"),
         Some("Ctrl+F"),
