@@ -32,7 +32,6 @@ const DETAILS_SAMPLES_MIN_ROW_HEIGHT: u16 = 1;
 const GRAPH_WORKSPACE_INSET_SIZE: u16 = 2;
 const GRAPH_WORKSPACE_MIN_HEIGHT: u16 = 5;
 const PROCESS_TABLE_CHROME_HEIGHT: u16 = 3;
-pub(crate) const PROCESS_TABLE_MAX_HEIGHT: u16 = 13;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ProcessTableLayout {
@@ -150,6 +149,7 @@ pub(crate) fn main_panel_areas_with_height(
             visible_process_rows,
             has_tracked_total,
             process_panel_height,
+            lower_area.height,
         );
         let available_for_process = lower_area.height.saturating_sub(GRAPH_WORKSPACE_MIN_HEIGHT);
         let process_height = preferred_process_height
@@ -185,11 +185,20 @@ fn process_table_required_height(
     visible_process_rows: usize,
     has_tracked_total: bool,
     preference: ProcessPanelHeight,
+    available_height: u16,
 ) -> u16 {
     let content_rows = visible_process_rows.saturating_add(usize::from(has_tracked_total));
     let preferred_rows = match preference {
         ProcessPanelHeight::Auto => {
-            PROCESS_TABLE_MAX_HEIGHT.saturating_sub(PROCESS_TABLE_CHROME_HEIGHT) as usize
+            let usable = available_height.saturating_sub(PROCESS_TABLE_CHROME_HEIGHT);
+            let readable_graph = GRAPH_SLOT_MIN_HEIGHT
+                .saturating_add(GRAPH_WORKSPACE_INSET_SIZE)
+                .saturating_add(DETAILS_SHARED_CONTROLS_HEIGHT);
+            usize::from(
+                (usable.saturating_mul(2) / 5)
+                    .min(usable.saturating_sub(readable_graph))
+                    .max(1),
+            )
         }
         ProcessPanelHeight::Manual(rows) => usize::from(rows.max(1)),
     };
@@ -750,17 +759,17 @@ mod tests {
     }
 
     #[test]
-    fn dynamic_process_height_matches_rendered_rows_and_caps_at_existing_maximum() {
+    fn dynamic_process_height_matches_content_and_available_height() {
         let screen = Rect::new(0, 0, 120, 60);
         let cases = [
             (0, false, 3, 0, false),
             (1, false, 4, 1, false),
             (4, false, 7, 4, false),
-            (20, false, PROCESS_TABLE_MAX_HEIGHT, 10, false),
+            (20, false, 21, 18, false),
             (0, true, 4, 0, true),
             (1, true, 5, 1, true),
             (4, true, 8, 4, true),
-            (20, true, PROCESS_TABLE_MAX_HEIGHT, 9, true),
+            (20, true, 21, 17, true),
         ];
 
         for (visible, has_total, height, page_size, show_total) in cases {
@@ -811,7 +820,7 @@ mod tests {
         let manual =
             main_panel_areas_with_height(screen, true, 30, false, ProcessPanelHeight::Manual(20));
 
-        assert_eq!(automatic.processes.body_capacity, 10);
+        assert_eq!(automatic.processes.body_capacity, 18);
         assert_eq!(manual.processes.body_capacity, 20);
         assert_eq!(
             manual.processes.area.height,

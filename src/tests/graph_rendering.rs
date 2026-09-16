@@ -2044,3 +2044,47 @@ fn graph_workspace_border_stays_outside_cards_samples_and_scrollbar() {
         }
     }
 }
+
+#[test]
+fn automatic_split_scales_with_terminal_height_and_keeps_graphs_readable() {
+    let mut app = make_test_app(100, 10);
+    for index in 0..4 {
+        add_test_graph(&mut app, index);
+    }
+    for show_samples in [true, false] {
+        app.show_samples_panel = show_samples;
+        for (height, expected_rows) in [(45, 12), (60, 18), (90, 30), (60, 18)] {
+            let screen = Rect::new(0, 0, 180, height);
+            app::sync_layout_state(&mut app, screen);
+            let panels = main_panel_areas_for_app(screen, &app);
+            assert_eq!(panels.processes.body_capacity, expected_rows);
+            let layout = ui::layout::graph_workspace_layout(panels.details.unwrap(), &app);
+            assert!(!layout.compact);
+            assert!(
+                layout
+                    .graph_cards
+                    .iter()
+                    .all(|card| card.area.height >= crate::app::GRAPH_SLOT_MIN_HEIGHT)
+            );
+            assert!(
+                layout
+                    .graph_cards
+                    .iter()
+                    .any(|card| Some(card.id) == app.active_graph_id)
+            );
+        }
+    }
+    app.process_panel_height = crate::app::ProcessPanelHeight::Manual(24);
+    app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 45));
+    app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 90));
+    assert_eq!(
+        app.process_panel_height,
+        crate::app::ProcessPanelHeight::Manual(24)
+    );
+    assert_eq!(
+        main_panel_areas_for_app(Rect::new(0, 0, 180, 90), &app)
+            .processes
+            .body_capacity,
+        24
+    );
+}

@@ -101,7 +101,7 @@ fn process_page_size_uses_full_height_without_graphs_and_caps_with_graphs() {
         main_panel_areas(Rect::new(0, 0, 120, 60), true, 30, false)
             .processes
             .page_size,
-        10
+        18
     );
 }
 
@@ -981,7 +981,7 @@ fn dynamic_process_page_size_preserves_selection_and_clamps_offset() {
     app::sync_layout_state(&mut app, screen);
     app.select_process_index(15);
     app.ensure_selected_row_visible();
-    assert_eq!(app.process_table_state.offset(), 6);
+    assert_eq!(app.process_table_state.offset(), 0);
 
     app.filter_text = "proc-15".to_string();
     app.rebuild_visible_process_cache();
@@ -995,8 +995,8 @@ fn dynamic_process_page_size_preserves_selection_and_clamps_offset() {
     app.rebuild_visible_process_cache();
     app::sync_layout_state(&mut app, screen);
 
-    assert_eq!(app.process_page_size, 10);
-    assert_eq!(app.process_table_state.offset(), 6);
+    assert_eq!(app.process_page_size, 18);
+    assert_eq!(app.process_table_state.offset(), 0);
     assert_eq!(app.selected_visible_process().unwrap().name, "proc-15");
 }
 
@@ -1017,29 +1017,29 @@ fn process_height_shortcuts_share_one_preference_across_workspace_focus() {
             main_panel_areas_for_app(screen, &app)
                 .processes
                 .body_capacity,
-            10
+            18
         );
 
         app.on_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE))
             .unwrap();
         app::sync_layout_state(&mut app, screen);
-        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(11));
+        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(19));
         assert_eq!(
             main_panel_areas_for_app(screen, &app)
                 .processes
                 .body_capacity,
-            11
+            19
         );
         assert_eq!(app.focused_panel, focused_panel);
-        assert_eq!(app.status, "Processes height: 11 rows");
+        assert_eq!(app.status, "Processes height: 19 rows");
 
         app.on_key(KeyEvent::new(KeyCode::Char('H'), KeyModifiers::NONE))
             .unwrap();
-        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(10));
+        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(18));
 
         app.on_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::SHIFT))
             .unwrap();
-        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(9));
+        assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(17));
 
         app.on_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::ALT))
             .unwrap();
@@ -1050,7 +1050,7 @@ fn process_height_shortcuts_share_one_preference_across_workspace_focus() {
             main_panel_areas_for_app(screen, &app)
                 .processes
                 .body_capacity,
-            10
+            18
         );
     }
 }
@@ -1226,14 +1226,14 @@ fn process_graph_border_drag_updates_the_shared_height_preference() {
         screen,
     );
     app::sync_layout_state(&mut app, screen);
-    assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(13));
+    assert_eq!(app.process_panel_height, ProcessPanelHeight::Manual(21));
     assert_eq!(
         main_panel_areas_for_app(screen, &app)
             .processes
             .body_capacity,
-        13
+        21
     );
-    assert_eq!(app.status, "Processes height: 13 rows");
+    assert_eq!(app.status, "Processes height: 21 rows");
 
     app.on_mouse(
         MouseEvent {
