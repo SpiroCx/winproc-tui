@@ -131,3 +131,5 @@ Ctrl+F enters filter editing in Files, DLLs, Environment, and Network. Within th
 The Investigate menu exposes Process Info and live Files for the cursor row and shows its PID and name. These routes use the same fixed-target opening actions as the Processes shortcuts.
 
 Metrics identifies paused and recorded snapshots in its value heading and timestamp range. Files remains a live capture during display pause and shows when its result was received; that timestamp does not imply an atomic filesystem snapshot.
+
+Metrics keeps a stable order with general CPU, memory, GPU and I/O rows ahead of optional .NET runtime rows. Unavailable runtime values remain visible as `--`; temporary absence does not hide rows or imply that the process has no .NET runtime.

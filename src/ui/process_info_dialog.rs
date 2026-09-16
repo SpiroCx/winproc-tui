@@ -283,11 +283,21 @@ fn process_info_metrics_lines(app: &App, width: u16, theme: Theme) -> Vec<Line<'
         width,
         theme,
     ));
-    lines.extend(
-        metrics.rows.into_iter().map(|row| {
-            metric_value_line(row.label, &row.value, row.delta.as_deref(), width, theme)
-        }),
-    );
+    for row in metrics.rows {
+        if row.label == ".NET Heap" {
+            lines.push(Line::from(Span::styled(
+                ".NET runtime · -- = unavailable",
+                Style::default().fg(theme.muted),
+            )));
+        }
+        lines.push(metric_value_line(
+            row.label,
+            &row.value,
+            row.delta.as_deref(),
+            width,
+            theme,
+        ));
+    }
     lines
 }
 

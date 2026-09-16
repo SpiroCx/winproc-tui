@@ -69,6 +69,10 @@ const PROCESS_INFO_METRIC_COLUMNS: [MetricColumn; 23] = [
     MetricColumn::UserObjectCount,
     MetricColumn::GdiObjectCount,
     MetricColumn::GpuPercent,
+    MetricColumn::GpuDedicatedBytes,
+    MetricColumn::GpuSharedBytes,
+    MetricColumn::IoReadBytesPerSec,
+    MetricColumn::IoWriteBytesPerSec,
     MetricColumn::DotNetHeapBytes,
     MetricColumn::DotNetGcGen0HeapBytes,
     MetricColumn::DotNetGcGen1HeapBytes,
@@ -78,10 +82,6 @@ const PROCESS_INFO_METRIC_COLUMNS: [MetricColumn; 23] = [
     MetricColumn::DotNetGcCommittedBytes,
     MetricColumn::DotNetGcFragmentationBytes,
     MetricColumn::DotNetAllocationBytesPerSec,
-    MetricColumn::GpuDedicatedBytes,
-    MetricColumn::GpuSharedBytes,
-    MetricColumn::IoReadBytesPerSec,
-    MetricColumn::IoWriteBytesPerSec,
 ];
 
 const fn process_info_metric_label(column: MetricColumn) -> &'static str {

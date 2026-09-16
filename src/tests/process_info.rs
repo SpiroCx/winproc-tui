@@ -211,6 +211,10 @@ fn process_info_metrics_follow_current_a_and_b_rules_with_missing_values() {
             "USER Objects",
             "GDI Objects",
             "GPU Usage",
+            "GPU Dedicated Memory",
+            "GPU Shared Memory",
+            "I/O Read Throughput",
+            "I/O Write Throughput",
             ".NET Heap",
             ".NET Gen 0 Heap",
             ".NET Gen 1 Heap",
@@ -220,10 +224,6 @@ fn process_info_metrics_follow_current_a_and_b_rules_with_missing_values() {
             ".NET GC Committed",
             ".NET GC Fragmentation",
             ".NET Allocation Rate",
-            "GPU Dedicated Memory",
-            "GPU Shared Memory",
-            "I/O Read Throughput",
-            "I/O Write Throughput",
         ]
     );
     assert_eq!(
@@ -249,13 +249,13 @@ fn process_info_metrics_follow_current_a_and_b_rules_with_missing_values() {
         "Private Bytes",
         "Working Set - Private",
         "Handles",
-        ".NET Pinned Object Heap",
+        "GPU Dedicated Memory",
     ] {
         assert!(compact.contains(label), "missing {label}: {compact}");
     }
     app.scroll_process_info_end();
     let compact_end = render_app_to_text(&app, 60, 50);
-    for label in ["GPU Dedicated Memory", "I/O Write Throughput"] {
+    for label in [".NET Pinned Object Heap", ".NET Allocation Rate"] {
         assert!(
             compact_end.contains(label),
             "missing {label}: {compact_end}"
@@ -616,7 +616,7 @@ fn process_info_small_dialog_scrolls_without_overwriting_footer_shortcuts() {
     assert_eq!(app.process_info_focus, app::ProcessInfoFocus::Tabs);
 
     let rendered = render_app_to_text(&app, screen.width, screen.height);
-    assert!(rendered.contains("I/O Write Throughput"), "{rendered}");
+    assert!(rendered.contains(".NET Allocation Rate"), "{rendered}");
     assert!(!rendered.contains("[ Close ]"), "{rendered}");
     assert!(rendered.contains("Esc close"), "{rendered}");
 }
@@ -945,4 +945,22 @@ fn process_info_request_keeps_the_process_selected_when_dialog_opened() {
     }
     assert!(app.pending_process_info.is_none());
     assert_eq!(app.process_info_in_flight.as_ref().unwrap().name, "proc-0");
+}
+
+#[test]
+fn process_metrics_show_gpu_and_io_before_optional_runtime_rows_at_120x60() {
+    let mut app = make_test_app(1, 10);
+    app.process_info_tab = crate::app::ProcessInfoTab::Metrics;
+    app.open_selected_process_info_dialog().unwrap();
+    let text = render_app_to_text(&app, 120, 60);
+    assert!(text.contains("GPU Dedicated Memory"), "{text}");
+    assert!(text.contains("I/O Write Throughput"), "{text}");
+    let view = app.process_info_metrics_view().unwrap();
+    let labels: Vec<_> = view.rows.iter().map(|row| row.label).collect();
+    assert!(
+        labels
+            .iter()
+            .position(|label| *label == "I/O Write Throughput")
+            < labels.iter().position(|label| *label == ".NET Heap")
+    );
 }
