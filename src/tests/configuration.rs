@@ -989,6 +989,7 @@ fn app_config_saves_tracked_only_state() {
 fn app_config_saves_selected_color_scheme() {
     let mut app = make_test_app(3, 10);
     app.theme_index = 3;
+    app.high_contrast = true;
     let path = unique_config_path("color-scheme");
 
     write_app_config(&path, &app).unwrap();
@@ -999,6 +1000,7 @@ fn app_config_saves_selected_color_scheme() {
 
     assert!(rendered.contains("theme = \"Cyan\""), "{rendered}");
     assert_eq!(runtime.initial_theme, "Cyan");
+    assert!(runtime.initial_high_contrast);
 }
 
 #[test]

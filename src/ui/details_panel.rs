@@ -1028,7 +1028,7 @@ fn graph_workspace_title(
         .fg(if focused {
             theme.focus_border
         } else {
-            theme.border
+            theme.muted
         })
         .add_modifier(if focused {
             Modifier::BOLD
@@ -1061,7 +1061,7 @@ fn graph_workspace_title(
 
 fn graph_button_style(theme: Theme, hovered: bool, enabled: bool) -> Style {
     if !enabled {
-        Style::default().fg(theme.border).bg(theme.panel)
+        Style::default().fg(theme.exited).bg(theme.panel)
     } else if hovered {
         Style::default()
             .fg(theme.text)

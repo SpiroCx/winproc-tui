@@ -930,6 +930,7 @@ pub(crate) enum MainMenuSection {
     Investigate,
     Log,
     Config,
+    Appearance,
 }
 
 impl MainMenuSection {
@@ -940,6 +941,7 @@ impl MainMenuSection {
             Self::Investigate => "Investigate",
             Self::Log => "Log",
             Self::Config => "Config",
+            Self::Appearance => "Appearance",
         }
     }
 
@@ -962,6 +964,13 @@ impl MainMenuSection {
             (Self::Log, AppActivity::LogView) => LOG_VIEW_LOG_MAIN_MENU_ACTIONS,
             (Self::Log, AppActivity::Recording) => &[],
             (Self::Config, _) => CONFIG_MAIN_MENU_ACTIONS,
+            (Self::Appearance, _) => &[
+                MainMenuAction::SetTheme(0),
+                MainMenuAction::SetTheme(1),
+                MainMenuAction::SetTheme(2),
+                MainMenuAction::SetTheme(3),
+                MainMenuAction::ToggleContrast,
+            ],
         }
     }
 }
@@ -983,6 +992,8 @@ pub(crate) enum MainMenuAction {
     ReturnToLive,
     OpenLog,
     OpenStartupBehavior,
+    SetTheme(usize),
+    ToggleContrast,
     Help,
     QuitImmediately,
     QuitWithConfirmation,
@@ -1006,6 +1017,8 @@ impl MainMenuAction {
             Self::ReturnToLive => "Return to Live",
             Self::OpenLog => "Open",
             Self::OpenStartupBehavior => "Startup Behavior",
+            Self::SetTheme(index) => THEMES[index].name,
+            Self::ToggleContrast => "High contrast",
             Self::Help => "Help",
             Self::QuitImmediately => "Quit",
             Self::QuitWithConfirmation => "Quit",
@@ -1032,6 +1045,7 @@ const LIVE_MAIN_MENU_ITEMS: &[MainMenuItem] = &[
     MainMenuItem::Section(MainMenuSection::Investigate),
     MainMenuItem::Action(MainMenuAction::StartRecording),
     MainMenuItem::Section(MainMenuSection::Log),
+    MainMenuItem::Section(MainMenuSection::Appearance),
     MainMenuItem::Section(MainMenuSection::Config),
     MainMenuItem::Action(MainMenuAction::Help),
     MainMenuItem::Action(MainMenuAction::QuitImmediately),
@@ -1042,6 +1056,7 @@ const RECORDING_MAIN_MENU_ITEMS: &[MainMenuItem] = &[
     MainMenuItem::Section(MainMenuSection::View),
     MainMenuItem::Section(MainMenuSection::Investigate),
     MainMenuItem::Action(MainMenuAction::StopRecording),
+    MainMenuItem::Section(MainMenuSection::Appearance),
     MainMenuItem::Section(MainMenuSection::Config),
     MainMenuItem::Action(MainMenuAction::Help),
     MainMenuItem::Action(MainMenuAction::QuitWithConfirmation),
@@ -1052,6 +1067,7 @@ const LOG_VIEW_MAIN_MENU_ITEMS: &[MainMenuItem] = &[
     MainMenuItem::Section(MainMenuSection::View),
     MainMenuItem::Section(MainMenuSection::Investigate),
     MainMenuItem::Section(MainMenuSection::Log),
+    MainMenuItem::Section(MainMenuSection::Appearance),
     MainMenuItem::Section(MainMenuSection::Config),
     MainMenuItem::Action(MainMenuAction::Help),
     MainMenuItem::Action(MainMenuAction::QuitImmediately),
@@ -1329,6 +1345,7 @@ pub(crate) struct App {
     pub(crate) ab_comparison: Option<AbComparison>,
     pub(crate) last_screen_area: Rect,
     pub(crate) theme_index: usize,
+    pub(crate) high_contrast: bool,
     pub(crate) status: String,
 }
 
@@ -1388,6 +1405,7 @@ impl App {
         let process_view_mode = runtime.initial_process_view_mode;
         let mut app = Self {
             theme_index: theme_index_by_name(&runtime.initial_theme),
+            high_contrast: runtime.initial_high_contrast,
             runtime,
             sampling_worker,
             process_info_worker,
@@ -1636,7 +1654,7 @@ impl App {
     }
 
     pub(crate) fn theme(&self) -> Theme {
-        THEMES[self.theme_index]
+        THEMES[self.theme_index].with_high_contrast(self.high_contrast)
     }
 
     pub(crate) fn cycle_theme(&mut self) {
@@ -6495,6 +6513,32 @@ impl App {
 
     pub(crate) fn main_menu_row_label(&self, row: MainMenuRow) -> String {
         match row.item {
+            MainMenuItem::Section(MainMenuSection::Appearance) => format!(
+                "Appearance: {}{} {}",
+                self.theme().name,
+                if self.high_contrast {
+                    " / High contrast"
+                } else {
+                    ""
+                },
+                if self
+                    .main_menu_expanded
+                    .contains(&MainMenuSection::Appearance)
+                {
+                    '▾'
+                } else {
+                    '▸'
+                }
+            ),
+            MainMenuItem::Action(MainMenuAction::SetTheme(index)) => format!(
+                "({}) {}",
+                if self.theme_index == index { '*' } else { ' ' },
+                THEMES[index].name
+            ),
+            MainMenuItem::Action(MainMenuAction::ToggleContrast) => format!(
+                "[{}] High contrast",
+                if self.high_contrast { 'x' } else { ' ' }
+            ),
             MainMenuItem::Section(section) => format!(
                 "{} {}",
                 section.label(),
@@ -6634,6 +6678,10 @@ impl App {
         match action {
             MainMenuAction::ToggleTrackedOnly => self.toggle_watch_list(),
             MainMenuAction::ToggleTreeView => self.toggle_process_view_mode(),
+            MainMenuAction::SetTheme(index) => {
+                self.theme_index = index;
+            }
+            MainMenuAction::ToggleContrast => self.high_contrast = !self.high_contrast,
             _ => return false,
         }
         true
@@ -6739,7 +6787,10 @@ impl App {
                 self.open_column_picker();
                 Ok(())
             }
-            MainMenuAction::ToggleTrackedOnly | MainMenuAction::ToggleTreeView => unreachable!(),
+            MainMenuAction::ToggleTrackedOnly
+            | MainMenuAction::ToggleTreeView
+            | MainMenuAction::SetTheme(_)
+            | MainMenuAction::ToggleContrast => unreachable!(),
             MainMenuAction::StartRecording => self.toggle_recording(),
             MainMenuAction::StopRecording => {
                 self.request_recording_stop();

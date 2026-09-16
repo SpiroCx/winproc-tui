@@ -148,6 +148,9 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
     if app.focused_panel == FocusedPanel::Processes && app.watch_enabled {
         items.push(("Ctrl+A", "Select all"));
     }
+    if items.first() == Some(&("Space", "Track name")) {
+        items.retain(|(key, _)| *key != "t");
+    }
     let primary_key = items.first().map(|(key, _)| *key);
     if app.can_adjust_process_panel_height() {
         items.insert(0, ("h/H/Alt+H", "Height"));
@@ -188,7 +191,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
     }
     items.push(("Shift+T", "Tracked-only"));
     items.push(("Ctrl+T", "Profiles"));
-    items.push(("F12", "Color"));
+    items.push(("F12", "Theme"));
     items.push(("F1/?", "Help"));
     items.push(("Tab", "Focus"));
     items.push(("Ctrl+↑↓←→", "Panel"));

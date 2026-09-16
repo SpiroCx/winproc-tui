@@ -51,6 +51,7 @@ fn menu_uses_the_exact_activity_specific_item_sets() {
             "Investigate ▸",
             "Start Recording",
             "Log ▸",
+            "Appearance: Green ▸",
             "Config ▸",
             "Help",
             "Quit"
@@ -75,6 +76,7 @@ fn menu_uses_the_exact_activity_specific_item_sets() {
             "View ▸",
             "Investigate ▸",
             "Stop Recording",
+            "Appearance: Green ▸",
             "Config ▸",
             "Help",
             "Quit"
@@ -91,6 +93,7 @@ fn menu_uses_the_exact_activity_specific_item_sets() {
             "View ▸",
             "Investigate ▸",
             "Stop Recording",
+            "Appearance: Green ▸",
             "Config ▸",
             "Help",
             "Quit"
@@ -120,6 +123,7 @@ fn menu_uses_the_exact_activity_specific_item_sets() {
             "View ▸",
             "Investigate ▸",
             "Log ▸",
+            "Appearance: Green ▸",
             "Config ▸",
             "Help",
             "Quit"
@@ -150,6 +154,7 @@ fn menu_expands_profile_and_toggles_view_checkboxes_inline() {
             "Investigate ▸",
             "Start Recording",
             "Log ▸",
+            "Appearance: Green ▸",
             "Config ▸",
             "Help",
             "Quit"
@@ -307,11 +312,11 @@ fn menu_navigation_and_actions_reuse_existing_flows() {
     let mut app = make_test_app(1, 10);
     press(&mut app, KeyCode::Esc);
     press(&mut app, KeyCode::End);
-    assert_eq!(app.main_menu_selected, 8);
+    assert_eq!(app.main_menu_selected, 9);
     press(&mut app, KeyCode::Home);
     assert_eq!(app.main_menu_selected, 0);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.main_menu_selected, 8);
+    assert_eq!(app.main_menu_selected, 9);
     press(&mut app, KeyCode::Down);
     assert_eq!(app.main_menu_selected, 0);
     press(&mut app, KeyCode::End);
@@ -319,7 +324,7 @@ fn menu_navigation_and_actions_reuse_existing_flows() {
     assert_eq!(app.main_menu_selected, 0);
     press(&mut app, KeyCode::End);
     press(&mut app, KeyCode::Up);
-    assert_eq!(app.main_menu_selected, 7);
+    assert_eq!(app.main_menu_selected, 8);
     press(&mut app, KeyCode::Enter);
     assert!(!app.is_main_menu_open());
     assert!(app.show_help);
@@ -766,4 +771,50 @@ fn menu_does_not_block_sampling_or_recording_frame_writes() {
     let _ = std::fs::remove_file(path);
 
     assert_eq!(request_rx.try_recv(), Err(TryRecvError::Empty));
+}
+
+#[test]
+fn appearance_choices_apply_only_on_activation_and_keep_current_markers() {
+    use crate::app::state::{MainMenuAction, MainMenuItem, MainMenuSection};
+    let mut app = make_test_app(1, 10);
+    let screen = Rect::new(0, 0, 180, 60);
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (x, y) = find_text_position(&buffer, "[Appearance]").unwrap();
+    app.on_mouse(left_click(x, y), screen);
+    assert!(
+        app.main_menu_expanded
+            .contains(&MainMenuSection::Appearance)
+    );
+    for index in 0..4 {
+        let row = app
+            .main_menu_rows()
+            .iter()
+            .position(|row| row.item == MainMenuItem::Action(MainMenuAction::SetTheme(index)))
+            .unwrap();
+        let original = app.theme_index;
+        app.main_menu_selected = row;
+        let area = main_menu_item_area(screen, &app, row).unwrap();
+        app.on_mouse(mouse_move(area.x, area.y), screen);
+        assert_eq!(app.theme_index, original);
+        app.on_mouse(left_click(area.x, area.y), screen);
+        assert_eq!(app.theme_index, index);
+        assert!(app.is_main_menu_open());
+        assert!(
+            menu_labels(&app)
+                .iter()
+                .any(|label| label == &format!("(*) {}", app.theme().name))
+        );
+    }
+    let row = app
+        .main_menu_rows()
+        .iter()
+        .position(|row| row.item == MainMenuItem::Action(MainMenuAction::ToggleContrast))
+        .unwrap();
+    app.activate_main_menu_at(row).unwrap();
+    assert!(app.high_contrast);
+    let before = app.theme_index;
+    app.on_key(KeyEvent::new(KeyCode::F(12), KeyModifiers::NONE))
+        .unwrap();
+    assert_eq!(app.theme_index, (before + 1) % 4);
+    assert!(app.high_contrast);
 }

@@ -43,6 +43,7 @@ pub(crate) struct AppConfig {
 pub(crate) struct GeneralConfig {
     pub(crate) mouse: bool,
     pub(crate) theme: String,
+    pub(crate) high_contrast: bool,
 }
 
 impl Default for GeneralConfig {
@@ -50,6 +51,7 @@ impl Default for GeneralConfig {
         Self {
             mouse: true,
             theme: "Green".to_string(),
+            high_contrast: false,
         }
     }
 }
@@ -253,6 +255,7 @@ pub(crate) struct RuntimeConfig {
     pub(crate) config_path: Option<PathBuf>,
     pub(crate) recording_last_dir: Option<PathBuf>,
     pub(crate) initial_theme: String,
+    pub(crate) initial_high_contrast: bool,
     pub(crate) initial_graph_slot_layout: GraphSlotLayout,
     pub(crate) initial_graph_time_span_seconds: u32,
     pub(crate) initial_graph_y_axis_zero_min: bool,
@@ -481,6 +484,7 @@ pub(crate) fn build_runtime_config(mut config: AppConfig) -> Result<RuntimeConfi
         config_path: None,
         recording_last_dir: config.recording.last_dir,
         initial_theme: config.general.theme,
+        initial_high_contrast: config.general.high_contrast,
         initial_graph_slot_layout: match config.graphs.columns.unwrap_or_default() {
             1 => GraphSlotLayout::OneColumn,
             2 => GraphSlotLayout::TwoColumns,
@@ -541,6 +545,7 @@ pub(crate) fn write_app_config(path: &Path, app: &App) -> Result<()> {
         general: GeneralConfig {
             mouse: app.runtime.mouse,
             theme: app.theme().name.to_string(),
+            high_contrast: app.high_contrast,
         },
         graphs: GraphConfig {
             columns: Some(app.graph_slot_layout.columns()),

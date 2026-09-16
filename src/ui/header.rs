@@ -352,7 +352,7 @@ impl HeaderAction {
             Self::Profile => "[Profile]",
             Self::View => "[View]",
             Self::Session => "[Session]",
-            Self::Settings => "[Settings]",
+            Self::Settings => "[Appearance]",
             Self::Help => "[Help]",
         }
     }

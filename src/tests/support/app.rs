@@ -134,6 +134,7 @@ pub(in crate::tests) fn make_test_app_with_workers(
             config_path: None,
             recording_last_dir: None,
             initial_theme: "Green".to_string(),
+            initial_high_contrast: false,
             initial_graph_slot_layout: GraphSlotLayout::Auto,
             initial_graph_time_span_seconds: 60,
             initial_graph_y_axis_zero_min: true,
@@ -402,6 +403,7 @@ pub(in crate::tests) fn make_test_app_with_workers(
         ab_comparison: None,
         last_screen_area: ratatui::layout::Rect::new(0, 0, 100, 45),
         theme_index: 0,
+        high_contrast: false,
         status: String::new(),
     }
 }

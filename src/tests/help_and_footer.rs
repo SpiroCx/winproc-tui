@@ -213,7 +213,10 @@ fn help_dialog_buffer_shows_two_column_layout() {
         "{rendered}"
     );
     assert!(rendered.contains("F12"), "{rendered}");
-    assert!(rendered.contains("Cycle color scheme"), "{rendered}");
+    assert!(
+        rendered.contains("Cycle theme; Appearance selects theme and contrast directly"),
+        "{rendered}"
+    );
     assert!(rendered.contains("Esc/Enter/F1/? Close"), "{rendered}");
     assert!(rendered.contains("Footer: fits width."), "{rendered}");
     assert!(
@@ -400,7 +403,7 @@ fn footer_shows_process_context_on_one_row() {
     assert!(rendered.contains("Ctrl+F Filter"), "{rendered}");
     assert!(rendered.contains("ESC Menu"), "{rendered}");
     assert!(rendered.contains("Tab Focus"), "{rendered}");
-    assert!(rendered.contains("F12 Color"), "{rendered}");
+    assert!(rendered.contains("F12 Theme"), "{rendered}");
     assert!(rendered.contains("F1/? Help"), "{rendered}");
     assert!(!rendered.contains("Status  "), "{rendered}");
     assert!(rendered.contains("Copied row: proc-0"), "{rendered}");

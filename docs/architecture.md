@@ -194,3 +194,9 @@ The existing footer boundary displays the latest action result or status without
 ### Help overlay
 
 Help is an independent input layer above every dialog, including text editing and confirmations. Opening and closing it preserves the underlying dialog state and target. It owns keyboard and mouse input while visible. Help lays out complete rows for the available width; drawing, paging, and scrollbar geometry use the same wrapped content.
+
+### Appearance
+
+The four accent preferences share readable dark surfaces. Appearance shows the active preference and applies an explicit choice immediately; navigation or hover alone never changes it. A separate high-contrast option strengthens neutral text, framing, and guides without replacing the accent preference. Both settings persist as application-wide presentation state.
+
+Border colors frame regions; inactive but relevant state uses readable text colors. Focus uses a border and emphasis, cursor and multi-selection use separate surfaces, tracking retains its marker, registered values retain the Graph caption, and activity, warnings, and errors retain text labels. These cues supplement color. Higher-contrast dark presentation keeps the same geometry; light and terminal-adaptive palettes remain deferred because the application owns dark surfaces throughout the screen and would need a separately validated palette.

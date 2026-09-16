@@ -357,7 +357,7 @@ impl App {
                     HeaderAction::Profile => MainMenuSection::Profile,
                     HeaderAction::View => MainMenuSection::View,
                     HeaderAction::Session => MainMenuSection::Log,
-                    _ => MainMenuSection::Config,
+                    _ => MainMenuSection::Appearance,
                 };
                 self.open_main_menu_section(section);
             }

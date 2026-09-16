@@ -708,7 +708,7 @@ fn investigation_views_preserve_results_and_expose_direct_header_actions() {
         "[Find file users]",
         "[View]",
         "[Session]",
-        "[Settings]",
+        "[Appearance]",
         "[Help]",
     ] {
         assert!(text.lines().next().unwrap().contains(label), "{text}");

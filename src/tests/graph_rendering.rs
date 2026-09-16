@@ -774,7 +774,7 @@ fn graph_fit_all_disables_zoom_out_and_zoom_in_uses_visible_span() {
     let rendered = render_app_to_buffer(&app, screen.width, screen.height);
     assert_eq!(
         rendered[(zoom_out.x + 1, zoom_out.y)].fg,
-        app.theme().border
+        app.theme().exited
     );
 
     app.on_mouse(left_click(zoom_out.x + 1, zoom_out.y), screen);
@@ -1289,7 +1289,7 @@ fn graph_panel_title_omits_the_verbose_slot_list() {
     let (metadata_x, metadata_y) =
         find_text_position_in_area(&buffer, layout.graph_slots, "8 Slots")
             .expect("Graph slot metadata should render in the panel title");
-    assert_eq!(buffer[(metadata_x, metadata_y)].fg, app.theme().border);
+    assert_eq!(buffer[(metadata_x, metadata_y)].fg, app.theme().muted);
     assert!(
         !buffer[(metadata_x, metadata_y)]
             .modifier
@@ -2094,4 +2094,36 @@ fn automatic_split_scales_with_terminal_height_and_keeps_graphs_readable() {
             .body_capacity,
         24
     );
+}
+
+#[test]
+fn graph_state_text_stays_readable_in_every_appearance() {
+    let mut app = make_test_app(2, 10);
+    assign_private_graph(&mut app);
+    for index in 0..4 {
+        app.theme_index = index;
+        for high_contrast in [false, true] {
+            app.high_contrast = high_contrast;
+            for focused in [false, true] {
+                app.focused_panel = if focused {
+                    FocusedPanel::DetailsGraph
+                } else {
+                    FocusedPanel::Processes
+                };
+                let buffer = render_app_to_buffer(&app, 180, 60);
+                let (x, y) = find_text_position(&buffer, "1 Slot").unwrap();
+                assert_eq!(
+                    buffer[(x, y)].fg,
+                    if focused {
+                        app.theme().focus_border
+                    } else {
+                        app.theme().muted
+                    }
+                );
+                let text = buffer_to_text(&buffer);
+                assert!(text.contains("Follow latest"));
+                assert!(text.contains("1 Slot"));
+            }
+        }
+    }
 }

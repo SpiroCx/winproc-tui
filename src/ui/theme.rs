@@ -27,6 +27,21 @@ pub(crate) struct Theme {
     pub(crate) selection: Color,
 }
 
+impl Theme {
+    pub(crate) fn with_high_contrast(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.text = Color::Rgb(255, 255, 255);
+            self.muted = Color::Rgb(195, 198, 202);
+            self.border = Color::Rgb(132, 140, 150);
+            self.key_hint = self.focus_border;
+            self.graph_line = Color::Rgb(195, 198, 202);
+            self.cursor_guide = Color::Rgb(169, 176, 184);
+            self.exited = Color::Rgb(174, 182, 190);
+        }
+        self
+    }
+}
+
 // Each theme varies this complete set of semantic colors while sharing neutral surfaces.
 #[allow(clippy::too_many_arguments)]
 const fn dark_theme(
@@ -62,7 +77,7 @@ const fn dark_theme(
         warning,
         danger: Color::Rgb(224, 108, 117),
         tracked,
-        exited: Color::Rgb(109, 114, 122),
+        exited: Color::Rgb(145, 150, 158),
         highlight: Color::Rgb(34, 37, 41),
         selection: Color::Rgb(27, 30, 33),
     }
@@ -73,7 +88,7 @@ pub(crate) const THEMES: [Theme; 4] = [
         "Green",
         Color::Rgb(201, 206, 214),
         Color::Rgb(104, 196, 164),
-        Color::Rgb(83, 151, 128),
+        Color::Rgb(100, 174, 149),
         Color::Rgb(19, 51, 48),
         Color::Rgb(39, 49, 54),
         Color::Rgb(32, 79, 73),
@@ -85,7 +100,7 @@ pub(crate) const THEMES: [Theme; 4] = [
         "Yellow",
         Color::Rgb(226, 200, 111),
         Color::Rgb(239, 209, 116),
-        Color::Rgb(169, 144, 77),
+        Color::Rgb(197, 170, 94),
         Color::Rgb(63, 54, 28),
         Color::Rgb(55, 51, 41),
         Color::Rgb(92, 77, 33),
@@ -97,7 +112,7 @@ pub(crate) const THEMES: [Theme; 4] = [
         "Orange",
         Color::Rgb(238, 157, 99),
         Color::Rgb(242, 163, 111),
-        Color::Rgb(181, 111, 67),
+        Color::Rgb(199, 135, 91),
         Color::Rgb(67, 39, 25),
         Color::Rgb(56, 46, 40),
         Color::Rgb(97, 54, 31),
@@ -211,6 +226,27 @@ mod tests {
         assert_eq!(theme_index_by_name("Neutral Light"), 0);
         assert_eq!(theme_index_by_name("Ocean Pop"), 0);
         assert_eq!(theme_index_by_name("unknown"), 0);
+    }
+
+    #[test]
+    fn text_roles_meet_local_contrast_in_normal_and_high_contrast_dark_palettes() {
+        for normal in THEMES {
+            let high = normal.with_high_contrast(true);
+            for theme in [normal, high] {
+                for surface in [theme.background, theme.panel, theme.panel_alt] {
+                    for foreground in [theme.text, theme.muted, theme.key_hint, theme.exited] {
+                        assert!(
+                            contrast_ratio(foreground, surface) >= 4.5,
+                            "{} {foreground:?} on {surface:?}",
+                            theme.name
+                        );
+                    }
+                }
+            }
+            assert!(
+                contrast_ratio(high.muted, high.panel) > contrast_ratio(normal.muted, normal.panel)
+            );
+        }
     }
 
     #[test]

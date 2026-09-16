@@ -118,7 +118,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "F12",
-        label: "Cycle color scheme",
+        label: "Cycle theme; Appearance selects theme and contrast directly",
     },
     HelpItem {
         key: "Tab/Shift+Tab",
