@@ -1499,13 +1499,13 @@ fn moving_average_graph_labels_smoothed_cursor_but_keeps_raw_ab_and_samples() {
     );
     assert!(rendered.contains("[MA]"), "{rendered}");
     assert!(rendered.contains("B-A: +400"), "{rendered}");
-    assert!(rendered.contains("Max: 500"), "{rendered}");
+    assert!(rendered.contains("History max: 500"), "{rendered}");
     assert!(rendered.contains("MA5: 300"), "{rendered}");
     for expected in [
-        "Min: 100 @ 10:00:00",
-        "Max: 500 @ 10:00:04",
-        "Avg: 300",
-        "Samples: 5/5  Missing: 0",
+        "A-B min: 100 @ 10:00:00",
+        "A-B max: 500 @ 10:00:04",
+        "A-B avg: 300",
+        "A-B samples: 5/5  Missing: 0",
     ] {
         assert!(raw_rendered.contains(expected), "{raw_rendered}");
         assert!(rendered.contains(expected), "{rendered}");
@@ -1568,10 +1568,10 @@ fn ab_range_statistics_recalculate_per_graph_without_merging_reused_pid_identiti
     assert!(app.set_active_graph(old_graph));
     let old_rendered = render_app_to_text(&app, screen.width, screen.height);
     for expected in [
-        "Min: 10 @ 10:00:00",
-        "Max: 20 @ 10:00:01",
-        "Avg: 15",
-        "Samples: 2/4  Missing: 2",
+        "A-B min: 10 @ 10:00:00",
+        "A-B max: 20 @ 10:00:01",
+        "A-B avg: 15",
+        "A-B samples: 2/4  Missing: 2",
     ] {
         assert!(old_rendered.contains(expected), "{old_rendered}");
     }
@@ -1579,10 +1579,10 @@ fn ab_range_statistics_recalculate_per_graph_without_merging_reused_pid_identiti
     assert!(app.set_active_graph(new_graph));
     let new_rendered = render_app_to_text(&app, screen.width, screen.height);
     for expected in [
-        "Min: 100 @ 10:00:02",
-        "Max: 200 @ 10:00:03",
-        "Avg: 150",
-        "Samples: 2/4  Missing: 2",
+        "A-B min: 100 @ 10:00:02",
+        "A-B max: 200 @ 10:00:03",
+        "A-B avg: 150",
+        "A-B samples: 2/4  Missing: 2",
     ] {
         assert!(new_rendered.contains(expected), "{new_rendered}");
     }
@@ -1615,11 +1615,11 @@ fn ab_range_summary_keeps_samples_accessible_on_narrow_and_short_screens() {
         let rendered = render_app_to_text(&app, screen.width, screen.height);
         assert!(rendered.contains("A/B Time"), "{screen:?}\n{rendered}");
         assert!(
-            rendered.contains("Min: 10 @ 10:00:00"),
+            rendered.contains("A-B min: 10 @ 10:00:00"),
             "{screen:?}\n{rendered}"
         );
         assert!(
-            rendered.contains("Samples: 2/2  Missing: 0"),
+            rendered.contains("A-B samples: 2/2  Missing: 0"),
             "{screen:?}\n{rendered}"
         );
     }
@@ -1682,10 +1682,10 @@ fn ab_range_summary_survives_delta_toggle_at_reported_size() {
             "Delta={show_delta} active Graph should remain visible: {layout:?}"
         );
         for expected in [
-            "Min: 242,569,210 @ 08:00:00",
-            "Max: 242,655,232 @ 08:00:01",
-            "Avg: 242,612,221",
-            "Samples: 2/2  Missing: 0",
+            "A-B min: 242,569,210 @ 08:00:00",
+            "A-B max: 242,655,232 @ 08:00:01",
+            "A-B avg: 242,612,221",
+            "A-B samples: 2/2  Missing: 0",
         ] {
             assert!(
                 rendered.contains(expected),
@@ -1725,7 +1725,11 @@ fn graph_ab_labels_render_on_x_axis_not_cursor_value_row() {
     let (_, value_y) = find_text_position_in_area(&buffer, graph, "424,242")
         .expect("selected graph value should render in graph");
     let a_labels = find_styled_symbol_positions_in_area(&buffer, graph, "A", THEMES[0].accent);
-    let b_labels = find_styled_symbol_positions_in_area(&buffer, graph, "B", THEMES[0].accent);
+    // The cursor now includes the byte unit B; only the remaining B is an axis marker.
+    let b_labels = find_styled_symbol_positions_in_area(&buffer, graph, "B", THEMES[0].accent)
+        .into_iter()
+        .filter(|(_, y)| *y != value_y)
+        .collect::<Vec<_>>();
     let graph_rows = ui::layout::details_graph_rows(graph);
     let expected_label_y = graph_rows[1].bottom().saturating_sub(1);
 
@@ -1965,4 +1969,44 @@ fn narrow_graphs_keep_same_name_pids_and_complete_byte_deltas() {
     }
     assert_eq!(text.matches("B-A: +3,321,856 B").count(), 3, "{text}");
     assert!(text.contains("l: 2/3 cols"), "{text}");
+}
+
+#[test]
+fn graph_cursor_units_and_summary_scopes_remain_clear_at_review_size() {
+    let mut app = make_test_app(1, 10);
+    assign_private_graph(&mut app);
+    let base = Local.with_ymd_and_hms(2026, 9, 17, 10, 0, 0).unwrap();
+    for seconds in 0..6 {
+        app.snapshot.captured_at = base + chrono::Duration::seconds(seconds);
+        app.snapshot.processes[0].private_bytes = Some(540_426_240 + seconds as u64);
+        app.process_history.record_snapshot(
+            app.snapshot.captured_at,
+            &app.snapshot.processes,
+            &app.normalized_watch_names,
+        );
+        app.system_history.record_snapshot(&app.snapshot);
+    }
+    app.select_details_sample_latest();
+    for show_samples in [true, false] {
+        app.show_samples_panel = show_samples;
+        for ab in [false, true] {
+            app.ab_comparison = ab.then_some(app::AbComparison {
+                a: Some(app::AbComparisonPoint { captured_at: base }),
+                b: Some(app::AbComparisonPoint {
+                    captured_at: base + chrono::Duration::seconds(5),
+                }),
+            });
+            let screen = Rect::new(0, 0, 180, 60);
+            app::sync_layout_state(&mut app, screen);
+            let buffer = render_app_to_buffer(&app, 180, 60);
+            let graph = details_graph_area_for_app(screen, &app).unwrap();
+            assert!(find_text_position_in_area(&buffer, graph, "540,426,245 B").is_some());
+            if show_samples {
+                let text = buffer_to_text(&buffer);
+                assert!(text.contains("History max:"), "{text}");
+                assert!(text.contains("Selected MA5:"), "{text}");
+                assert_eq!(text.contains("A-B max:"), ab, "{text}");
+            }
+        }
+    }
 }

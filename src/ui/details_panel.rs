@@ -1144,7 +1144,13 @@ fn format_graph_cursor_value(
     aggregate_interval_seconds: Option<u64>,
 ) -> Option<String> {
     let value = metric_value(sample, metric)?;
-    let value = format_metric_exact_value(value, metric);
+    let value = match metric {
+        GraphValueFormat::Bytes => format!("{} B", format_metric_exact_value(value, metric)),
+        GraphValueFormat::BytesPerSec => {
+            format!("{} B/s", format_integer(value.round().max(0.0) as u64))
+        }
+        _ => format_metric_exact_value(value, metric),
+    };
     Some(match display_mode {
         GraphDisplayMode::Raw => value,
         GraphDisplayMode::MovingAverage5 => {
@@ -1164,8 +1170,8 @@ fn sample_max_line(
 ) -> Line<'static> {
     let label = aggregate_interval_seconds
         .filter(|interval| *interval > 1)
-        .map(|interval| format!("Max ({interval}s avg)"))
-        .unwrap_or_else(|| "Max".to_string());
+        .map(|interval| format!("History max ({interval}s avg)"))
+        .unwrap_or_else(|| "History max".to_string());
     let Some((sample, value)) = sample_max(samples, metric) else {
         return Line::from(Span::styled(
             format!("{label}: --"),
@@ -1231,7 +1237,10 @@ fn sample_moving_average_line(
     aggregate_interval_seconds: Option<u64>,
     frame_times: Option<&[DateTime<Local>]>,
 ) -> Line<'static> {
-    let label = moving_average_label(aggregate_interval_seconds);
+    let label = format!(
+        "Selected {}",
+        moving_average_label(aggregate_interval_seconds)
+    );
     let Some((captured_at, value)) = sample_moving_average(samples, selected, frame_times) else {
         return Line::from(Span::styled(
             format!("{label}: --"),
@@ -1561,8 +1570,8 @@ fn sample_ab_range_summary_lines(
     aggregate_interval_seconds: Option<u64>,
 ) -> Vec<Line<'static>> {
     let min_label = aggregate_interval_seconds
-        .map(|interval| format!("Range ({interval}s avg) Min"))
-        .unwrap_or_else(|| "Min".to_string());
+        .map(|interval| format!("A-B min ({interval}s avg)"))
+        .unwrap_or_else(|| "A-B min".to_string());
     let sample_count = match (
         statistics.expected_frame_count,
         statistics.missing_frame_count,
@@ -1588,7 +1597,7 @@ fn sample_ab_range_summary_lines(
             ),
         ]),
         Line::from(vec![
-            Span::styled("Max: ", Style::default().fg(theme.accent)),
+            Span::styled("A-B max: ", Style::default().fg(theme.accent)),
             Span::styled(
                 format!(
                     "{} @ {}",
@@ -1599,14 +1608,14 @@ fn sample_ab_range_summary_lines(
             ),
         ]),
         Line::from(vec![
-            Span::styled("Avg: ", Style::default().fg(theme.accent)),
+            Span::styled("A-B avg: ", Style::default().fg(theme.accent)),
             Span::styled(
                 format_metric_exact_value(statistics.mean, metric),
                 Style::default().fg(theme.text),
             ),
         ]),
         Line::from(vec![
-            Span::styled("Samples: ", Style::default().fg(theme.accent)),
+            Span::styled("A-B samples: ", Style::default().fg(theme.accent)),
             Span::styled(sample_count, Style::default().fg(theme.text)),
         ]),
     ]
@@ -2562,7 +2571,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("");
 
-        assert_eq!(rendered, "Max: 3,000 @ 10:00:05");
+        assert_eq!(rendered, "History max: 3,000 @ 10:00:05");
     }
 
     #[test]
@@ -2606,7 +2615,7 @@ mod tests {
                 .map(|span| span.content.as_ref())
                 .collect::<Vec<_>>()
                 .join(""),
-            "MA5: --"
+            "Selected MA5: --"
         );
     }
 
@@ -2624,7 +2633,7 @@ mod tests {
                 .map(|span| span.content.as_ref())
                 .collect::<Vec<_>>()
                 .join(""),
-            "MA5: --"
+            "Selected MA5: --"
         );
     }
 
@@ -2721,9 +2730,9 @@ mod tests {
             value: Some(30.0),
         };
         for (metric, expected) in [
-            (GraphValueFormat::Bytes, "MA5: 30"),
+            (GraphValueFormat::Bytes, "MA5: 30 B"),
             (GraphValueFormat::Count, "MA5: 30"),
-            (GraphValueFormat::BytesPerSec, "MA5: 30/s"),
+            (GraphValueFormat::BytesPerSec, "MA5: 30 B/s"),
             (GraphValueFormat::Percent, "MA5: 30.0%"),
             (GraphValueFormat::QueueLength, "MA5: 30.0"),
         ] {
@@ -2829,8 +2838,8 @@ mod tests {
         .collect::<Vec<_>>()
         .join("");
 
-        assert_eq!(max, "Max (10s avg): 50 @ 10:00:00");
-        assert_eq!(average, "MA5 (5×10s avg): 30 @ 10:00:00");
+        assert_eq!(max, "History max (10s avg): 50 @ 10:00:00");
+        assert_eq!(average, "Selected MA5 (5×10s avg): 30 @ 10:00:00");
     }
 
     #[test]
@@ -3215,7 +3224,7 @@ mod tests {
         .map(|span| span.content.as_ref())
         .collect::<Vec<_>>()
         .join("");
-        assert_eq!(sample_count, "Samples: 1");
+        assert_eq!(sample_count, "A-B samples: 1");
         assert_eq!(
             ab_range_statistics(
                 Some(&comparison),
@@ -3279,12 +3288,12 @@ mod tests {
             assert_eq!(
                 rendered[0],
                 format!(
-                    "Min: {} @ 10:00:00",
+                    "A-B min: {} @ 10:00:00",
                     format_metric_exact_value(10.0, metric)
                 )
             );
-            assert_eq!(rendered[2], format!("Avg: {expected_mean}"));
-            assert_eq!(rendered[3], "Samples: 2/3  Missing: 1");
+            assert_eq!(rendered[2], format!("A-B avg: {expected_mean}"));
+            assert_eq!(rendered[3], "A-B samples: 2/3  Missing: 1");
         }
 
         for interval in [1, 2, 5, 10] {
@@ -3299,7 +3308,7 @@ mod tests {
             .map(|span| span.content.as_ref())
             .collect::<Vec<_>>()
             .join("");
-            assert_eq!(first, format!("Range ({interval}s avg) Min: 10 @ 10:00:00"));
+            assert_eq!(first, format!("A-B min ({interval}s avg): 10 @ 10:00:00"));
         }
     }
 

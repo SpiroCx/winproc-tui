@@ -798,11 +798,11 @@ fn recording_interval_is_written_and_partial_window_is_flushed() {
     });
     let range_summary = render_app_to_text(&app, 180, 55);
     assert!(
-        range_summary.contains("Range (10s avg) Min:"),
+        range_summary.contains("A-B min (10s avg):"),
         "{range_summary}"
     );
     assert!(
-        range_summary.contains("Samples: 1/1  Missing: 0"),
+        range_summary.contains("A-B samples: 1/1  Missing: 0"),
         "{range_summary}"
     );
     let _ = std::fs::remove_file(path);
