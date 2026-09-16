@@ -523,9 +523,11 @@ pub(crate) fn shortcuts(
     width: u16,
     theme: Theme,
 ) -> Vec<Span<'static>> {
-    let items = if global && view.editing {
+    let items = if view.editing {
         vec![
-            ("Enter/Esc", "done"),
+            ("Enter", "Apply"),
+            ("Esc", "Clear"),
+            ("Home/End", "Edge"),
             ("Ctrl+U", "clear"),
             ("←/→", "cursor"),
         ]
@@ -536,7 +538,7 @@ pub(crate) fn shortcuts(
             ("Esc", "close"),
             ("Enter", "info"),
             ("Space", "details"),
-            ("/", "filter"),
+            ("Ctrl+F /", "filter"),
             ("a", "mode"),
             ("r", "refresh"),
         ]

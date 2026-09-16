@@ -61,7 +61,7 @@ pub(crate) fn draw_process_table(
         process_table_column_rects(area, &visible_columns, &app.process_column_widths);
     let process_name_width = column_rects.get(2).map_or(0, |rect| rect.width);
     let full_path_width = full_path_column_render_width(&visible_columns, &column_rects);
-    let title = process_table_title(app, theme);
+    let title = process_table_title(app, area.width, theme);
     let block = process_table_block(title, overflow_indicator, app, theme);
     let table_area = block.inner(area);
     frame.render_widget(block, area);
@@ -883,7 +883,7 @@ fn process_text_style(row: &VisibleProcessRow<'_>, theme: Theme) -> Style {
     }
 }
 
-fn process_table_title(app: &App, theme: Theme) -> Line<'static> {
+fn process_table_title(app: &App, width: u16, theme: Theme) -> Line<'static> {
     let filter = app.active_filter_text();
     let mut spans = vec![Span::styled(
         PROCESS_TITLE,
@@ -891,7 +891,12 @@ fn process_table_title(app: &App, theme: Theme) -> Line<'static> {
     )];
     if app.is_filter_editing() {
         spans.push(title_separator(theme));
-        spans.extend(filter_title_spans(filter, theme));
+        spans.extend(filter_title_spans(
+            filter,
+            app.filter_cursor,
+            width.saturating_sub(30) as usize,
+            theme,
+        ));
     } else if app.is_process_jump_editing() {
         spans.push(title_separator(theme));
         spans.extend(jump_title_spans(app.process_jump_draft(), theme));
@@ -1012,7 +1017,13 @@ fn process_tracked_only_title_spans(app: &App, theme: Theme) -> Vec<Span<'static
     vec![Span::styled(process_tracked_only_label(app), label_style)]
 }
 
-fn filter_title_spans(filter: &str, theme: Theme) -> Vec<Span<'static>> {
+fn filter_title_spans(
+    filter: &str,
+    cursor: usize,
+    width: usize,
+    theme: Theme,
+) -> Vec<Span<'static>> {
+    let (before, after) = crate::app::text_input::window(filter, cursor, width);
     vec![
         Span::styled(
             "Filter ",
@@ -1029,7 +1040,7 @@ fn filter_title_spans(filter: &str, theme: Theme) -> Vec<Span<'static>> {
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            filter.to_string(),
+            before,
             Style::default()
                 .fg(theme.warning)
                 .bg(theme.panel_alt)
@@ -1041,6 +1052,10 @@ fn filter_title_spans(filter: &str, theme: Theme) -> Vec<Span<'static>> {
                 .fg(theme.background)
                 .bg(theme.warning)
                 .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            after,
+            Style::default().fg(theme.warning).bg(theme.panel_alt),
         ),
     ]
 }

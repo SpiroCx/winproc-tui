@@ -266,11 +266,17 @@ impl App {
         self.sync_network_layout(global, self.last_screen_area);
         let width = ui::active_content_area(self.last_screen_area, global).width;
         let view = self.network_view_mut(global);
-        let explicit_filter_edit = global && view.editing;
+        let explicit_filter_edit = view.editing;
         if explicit_filter_edit || (!global && !view.detail) {
             let mut handled = true;
             match key.code {
-                KeyCode::Esc | KeyCode::Enter if explicit_filter_edit => view.editing = false,
+                KeyCode::Enter if explicit_filter_edit => view.editing = false,
+                KeyCode::Esc if explicit_filter_edit => {
+                    view.filter.clear();
+                    view.cursor = 0;
+                    view.reset_selection();
+                    view.editing = false;
+                }
                 KeyCode::Left => {
                     view.cursor = view.filter[..view.cursor]
                         .char_indices()
@@ -351,7 +357,12 @@ impl App {
                 view.detail = true;
                 view.scroll.reset();
             }
-            KeyCode::Char('/') if global && !view.detail => {
+            KeyCode::Char(ch)
+                if !view.detail
+                    && ((global && ch == '/')
+                        || (ch.eq_ignore_ascii_case(&'f')
+                            && key.modifiers.contains(KeyModifiers::CONTROL))) =>
+            {
                 view.editing = true;
                 view.cursor = view.filter.len();
             }

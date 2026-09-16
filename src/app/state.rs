@@ -1285,6 +1285,8 @@ pub(crate) struct App {
     pub(crate) log_view_display: Option<PausedDisplay>,
     pub(crate) filter_text: String,
     pub(crate) filter_draft: String,
+    pub(crate) filter_cursor: usize,
+    pub(crate) process_info_filter_editing: bool,
     pub(crate) filter_editing: bool,
     pub(crate) jump_draft: String,
     pub(crate) jump_editing: bool,
@@ -1570,6 +1572,8 @@ impl App {
             log_view_display: None,
             filter_text: String::new(),
             filter_draft: String::new(),
+            filter_cursor: 0,
+            process_info_filter_editing: false,
             filter_editing: false,
             jump_draft: String::new(),
             jump_editing: false,
@@ -2371,6 +2375,7 @@ impl App {
 
     pub(crate) fn begin_filter_edit(&mut self) {
         self.filter_draft = self.filter_text.clone();
+        self.filter_cursor = self.filter_draft.len();
         self.filter_editing = true;
         self.rebuild_visible_process_cache();
         self.clamp_process_table_state();
@@ -2378,13 +2383,21 @@ impl App {
     }
 
     pub(crate) fn push_filter_char(&mut self, ch: char) {
-        self.filter_draft.push(ch);
+        self.filter_draft.insert(self.filter_cursor, ch);
+        self.filter_cursor += ch.len_utf8();
         self.rebuild_visible_process_cache();
         self.clamp_process_table_state();
     }
 
     pub(crate) fn pop_filter_char(&mut self) {
-        self.filter_draft.pop();
+        super::text_input::edit(
+            &mut self.filter_draft,
+            &mut self.filter_cursor,
+            crossterm::event::KeyEvent::new(
+                crossterm::event::KeyCode::Backspace,
+                crossterm::event::KeyModifiers::NONE,
+            ),
+        );
         self.rebuild_visible_process_cache();
         self.clamp_process_table_state();
     }
@@ -4972,6 +4985,7 @@ impl App {
     }
 
     pub(crate) fn activate_process_info_tab(&mut self, tab: ProcessInfoTab) -> Result<()> {
+        self.process_info_filter_editing = false;
         if !self.show_process_info_dialog {
             return Ok(());
         }
@@ -5456,6 +5470,7 @@ impl App {
     }
 
     pub(crate) fn close_process_info_dialog(&mut self) {
+        self.process_info_filter_editing = false;
         self.reset_scheduling();
         self.open_files_refresh = super::open_files::OpenFilesRefresh::default();
         self.process_info_verified_snapshot_at = None;

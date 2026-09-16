@@ -12,6 +12,7 @@ pub(crate) mod profiles;
 pub(crate) mod scheduling;
 pub(crate) mod state;
 pub(crate) mod system_info;
+pub(crate) mod text_input;
 
 use std::{
     fs::File,

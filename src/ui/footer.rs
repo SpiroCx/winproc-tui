@@ -39,6 +39,9 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         return Vec::new();
     }
 
+    if app.is_filter_editing() {
+        return shortcut_spans(super::super::app::text_input::FILTER_SHORTCUTS, theme);
+    }
     let mut items = match app.focused_panel {
         FocusedPanel::System => vec![
             ("←/→", "Column/Adapter"),

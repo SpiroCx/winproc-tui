@@ -1405,3 +1405,52 @@ fn process_navigation_only_runs_when_processes_are_focused() {
 
     assert_eq!(app.process_table_state.selected(), Some(0));
 }
+
+#[test]
+fn filter_editing_supports_unicode_cursor_movement_and_clear() {
+    let mut app = make_test_app(2, 10);
+    app.begin_filter_edit();
+    for ch in "ab日本".chars() {
+        app.push_filter_char(ch);
+    }
+    for key in [
+        KeyCode::Home,
+        KeyCode::Char('X'),
+        KeyCode::End,
+        KeyCode::Left,
+        KeyCode::Delete,
+    ] {
+        app.on_key(KeyEvent::new(key, KeyModifiers::NONE)).unwrap();
+    }
+    assert_eq!(app.filter_draft, "Xab日");
+    let text = render_app_to_text(&app, 120, 60);
+    assert!(text.lines().last().unwrap().contains("Enter Apply"));
+    assert!(!text.lines().last().unwrap().contains("Space Graph"));
+    app.on_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL))
+        .unwrap();
+    assert!(app.filter_draft.is_empty());
+}
+
+#[test]
+fn inspection_filter_editing_preserves_dialog_and_uses_shared_keys() {
+    for tab in [
+        crate::app::ProcessInfoTab::Files,
+        crate::app::ProcessInfoTab::Dlls,
+        crate::app::ProcessInfoTab::Environment,
+        crate::app::ProcessInfoTab::Network,
+    ] {
+        let mut app = make_test_app(1, 10);
+        app.show_process_info_dialog = true;
+        app.process_info_tab = tab;
+        app.on_key(KeyEvent::new(KeyCode::Char('f'), KeyModifiers::CONTROL))
+            .unwrap();
+        for key in [KeyCode::Char('a'), KeyCode::Home, KeyCode::Char('日')] {
+            app.on_key(KeyEvent::new(key, KeyModifiers::NONE)).unwrap();
+        }
+        assert!(app.process_info_filter_editing);
+        app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+            .unwrap();
+        assert!(app.show_process_info_dialog);
+        assert!(!app.process_info_filter_editing);
+    }
+}

@@ -358,6 +358,8 @@ pub(in crate::tests) fn make_test_app_with_workers(
         log_view_display: None,
         filter_text: String::new(),
         filter_draft: String::new(),
+        filter_cursor: 0,
+        process_info_filter_editing: false,
         filter_editing: false,
         jump_draft: String::new(),
         jump_editing: false,

@@ -349,6 +349,9 @@ impl App {
         }
 
         if self.show_process_info_dialog {
+            if self.on_inspection_filter_key(key) {
+                return Ok(());
+            }
             if self.scheduling.applying {
                 self.on_scheduling_key(key);
                 return Ok(());
@@ -734,10 +737,20 @@ impl App {
                     self.move_selection_down(1);
                 }
                 KeyCode::Backspace => self.pop_filter_char(),
-                KeyCode::Char(ch) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                    self.push_filter_char(ch);
+                KeyCode::Char(ch)
+                    if !key
+                        .modifiers
+                        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                {
+                    self.push_filter_char(ch)
                 }
-                _ => {}
+                _ => {
+                    if super::text_input::edit(&mut self.filter_draft, &mut self.filter_cursor, key)
+                    {
+                        self.rebuild_visible_process_cache();
+                        self.clamp_process_table_state();
+                    }
+                }
             }
             return Ok(());
         }

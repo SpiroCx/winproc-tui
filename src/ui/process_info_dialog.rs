@@ -524,6 +524,9 @@ fn draw_footer(frame: &mut ratatui::Frame<'_>, footer: Rect, app: &App, theme: T
 }
 
 fn shortcut_spans(app: &App, width: u16, theme: Theme) -> Vec<Span<'static>> {
+    if app.process_info_filter_editing {
+        return crate::ui::footer::shortcut_spans(crate::app::text_input::FILTER_SHORTCUTS, theme);
+    }
     if app.process_info_tab == ProcessInfoTab::Network
         && app.process_info_focus == ProcessInfoFocus::Content
     {

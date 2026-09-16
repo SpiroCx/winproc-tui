@@ -123,3 +123,7 @@ Passive tabs keep navigation on their content without creating a false focus sto
 - Environment values never leave dialog-owned state or appear in diagnostic text.
 - Process comparisons never substitute a nearby time or different identity.
 - Drawing and hit testing use the same dialog geometry.
+
+### Explicit filter editing
+
+Ctrl+F enters filter editing in Files, DLLs, Environment, and Network. Within the editor, arrows and Home/End move the text cursor, Backspace/Delete erase, Ctrl+U clears text, Enter applies, and Esc clears and leaves editing. Tab leaves editing and resumes control navigation. Outside explicit editing, list navigation and refresh retain their contextual meanings; direct typing remains available. The Processes filter and global Network editor use the same editing keys.

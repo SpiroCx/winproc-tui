@@ -120,6 +120,14 @@ const GLOBAL_ROWS: &[HelpItem] = &[
 
 const PROCESSES_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Ctrl+F (Info)",
+        label: "Edit Files / DLL / Environment / Network filter",
+    },
+    HelpItem {
+        key: "Home/End, ←/→ (filter)",
+        label: "Move text cursor; Ctrl+U clears text",
+    },
+    HelpItem {
         key: "v",
         label: "Toggle Flat / Tree view (Live and Recording)",
     },
@@ -129,7 +137,7 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Ctrl+F",
-        label: "Edit process filter",
+        label: "Edit filter: Enter apply, Esc clear",
     },
     HelpItem {
         key: "Ctrl+I/J",
@@ -566,7 +574,7 @@ const NETWORK_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Enter/Esc (global filter)",
-        label: "Finish editing; Ctrl+U clears",
+        label: "Enter applies; Esc clears and exits; Ctrl+U clears text",
     },
     HelpItem {
         key: "←/→, Backspace/Delete",
