@@ -14,7 +14,6 @@ pub(crate) struct Theme {
     pub(crate) focus_surface: Color,
     pub(crate) key_hint: Color,
     pub(crate) table_selection_surface: Color,
-    pub(crate) table_multi_selection_surface: Color,
     pub(crate) table_column_surface: Color,
     pub(crate) table_intersection_surface: Color,
     pub(crate) graph_line: Color,
@@ -55,7 +54,6 @@ const fn dark_theme(
         focus_surface: Color::Rgb(48, 52, 58),
         key_hint,
         table_selection_surface,
-        table_multi_selection_surface: Color::Rgb(45, 48, 52),
         table_column_surface,
         table_intersection_surface,
         graph_line: Color::Rgb(139, 144, 150),
@@ -186,11 +184,7 @@ mod tests {
         for theme in THEMES {
             assert_ne!(theme.focus_border, theme.active_series);
             assert_ne!(theme.key_hint, theme.focus_border);
-            assert_ne!(theme.table_multi_selection_surface, theme.panel);
-            assert_ne!(
-                theme.table_multi_selection_surface,
-                theme.table_column_surface
-            );
+            assert_ne!(theme.table_selection_surface, theme.panel);
             assert_ne!(theme.table_selection_surface, theme.table_column_surface);
             assert_ne!(
                 theme.table_selection_surface,

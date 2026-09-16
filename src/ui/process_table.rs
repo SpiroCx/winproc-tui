@@ -546,12 +546,8 @@ fn graph_state_for_cell(
 
 fn process_row_style(selected: bool, multi_selected: bool, theme: Theme) -> Style {
     let fg = theme.text;
-    if selected {
+    if selected || multi_selected {
         Style::default().fg(fg).bg(theme.table_selection_surface)
-    } else if multi_selected {
-        Style::default()
-            .fg(fg)
-            .bg(theme.table_multi_selection_surface)
     } else {
         Style::default().fg(fg).bg(theme.panel)
     }
@@ -1611,7 +1607,7 @@ mod tests {
 
         assert_eq!(
             process_row_style(false, true, theme).bg,
-            Some(theme.table_multi_selection_surface)
+            Some(theme.table_selection_surface)
         );
         assert!(
             !process_row_style(false, true, theme)

@@ -461,32 +461,54 @@ fn compact_system_rows_use_the_process_selection_surface_in_all_color_schemes() 
 }
 
 #[test]
-fn process_table_multi_selection_uses_a_stronger_dedicated_surface() {
+fn process_table_multi_selection_shares_cursor_surface_and_keeps_cursor_cell_distinct() {
     for (theme_index, theme) in ui::THEMES.iter().copied().enumerate() {
         let mut app = make_test_app(3, 10);
         app.theme_index = theme_index;
+        app.snapshot.processes[0].private_bytes = Some(111_111_111);
+        app.snapshot.processes[1].private_bytes = Some(222_222_222);
+        app.snapshot.processes[2].private_bytes = Some(333_333_333);
         app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT))
             .unwrap();
 
-        let buffer = render_app_to_buffer(&app, 100, 30);
-        let (multi_x, multi_y) = find_text_position(&buffer, "proc-0")
-            .expect("multi-selected process row should render");
-        let (current_x, current_y) =
-            find_text_position(&buffer, "proc-1").expect("current process row should render");
+        for cursor_index in [1, 2] {
+            if cursor_index == 2 {
+                app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+                    .unwrap();
+            }
+            let buffer = render_app_to_buffer(&app, 100, 30);
+            let rendered = buffer_to_text(&buffer);
+            assert!(rendered.contains("2 selected (*)"), "{rendered}");
 
-        assert_eq!(
-            buffer[(multi_x, multi_y)].bg,
-            theme.table_multi_selection_surface
-        );
-        assert_eq!(
-            buffer[(current_x, current_y)].bg,
-            theme.table_selection_surface
-        );
-        assert_ne!(theme.table_multi_selection_surface, theme.panel);
-        assert_ne!(
-            theme.table_multi_selection_surface,
-            theme.table_selection_surface
-        );
+            for (index, value) in ["111.1 MB", "222.2 MB", "333.3 MB"].iter().enumerate() {
+                let (name_x, name_y) =
+                    find_text_position(&buffer, &format!("proc-{index}")).unwrap();
+                let expected_row = if index < 2 || index == cursor_index {
+                    theme.table_selection_surface
+                } else {
+                    theme.panel
+                };
+                assert_eq!(buffer[(name_x, name_y)].bg, expected_row);
+                let (value_x, value_y) = find_text_position(&buffer, value).unwrap();
+                let expected_cell = if index == cursor_index {
+                    theme.table_intersection_surface
+                } else {
+                    theme.table_column_surface
+                };
+                assert_eq!(buffer[(value_x, value_y)].bg, expected_cell);
+                let selected_pid = format!("*{}", app.snapshot.processes[index].pid);
+                assert_eq!(rendered.contains(&selected_pid), index < 2, "{rendered}");
+            }
+        }
+
+        app.on_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE))
+            .unwrap();
+        let buffer = render_app_to_buffer(&app, 100, 30);
+        assert!(!buffer_to_text(&buffer).contains("selected (*)"));
+        for name in ["proc-0", "proc-2"] {
+            let (x, y) = find_text_position(&buffer, name).unwrap();
+            assert_eq!(buffer[(x, y)].bg, theme.panel);
+        }
     }
 }
 
@@ -679,7 +701,7 @@ fn process_graph_value_registration_styles_survive_table_backgrounds_in_all_them
         assert_eq!(buffer[(available_x, available_y)].fg, theme.active_series);
         assert_eq!(
             buffer[(available_x, available_y)].bg,
-            theme.table_multi_selection_surface
+            theme.table_selection_surface
         );
         assert!(
             buffer[(available_x, available_y)]

@@ -165,6 +165,10 @@ fn help_dialog_buffer_shows_two_column_layout() {
     assert!(rendered.contains("Select row range"), "{rendered}");
     assert!(rendered.contains("Toggle row selection"), "{rendered}");
     assert!(
+        rendered.contains("Cursor position within highlighted rows"),
+        "{rendered}"
+    );
+    assert!(
         rendered.contains("Kill selected live process"),
         "{rendered}"
     );

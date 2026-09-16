@@ -128,6 +128,10 @@ const PROCESSES_ROWS: &[HelpItem] = &[
         label: "Deeper ancestors compressed; Enter opens the full process name",
     },
     HelpItem {
+        key: "Stronger cell highlight",
+        label: "Cursor position within highlighted rows",
+    },
+    HelpItem {
         key: "* before PID",
         label: "Multi-selected row; count stays in Processes title",
     },

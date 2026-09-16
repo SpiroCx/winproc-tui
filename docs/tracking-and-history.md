@@ -95,6 +95,6 @@ Tracking action feedback names its image-name scope across matching PIDs. Profil
 
 ### Cursor and multi-selection
 
-The cursor and multi-selected identity set are independent. Process Info, Files and clipboard copy use the cursor row. Kill uses the selected set when nonempty, otherwise the cursor, and always requires confirmation of fixed identities. A marker before each selected PID and a persistent count distinguish selection without relying on color. Filtering, collapse and refresh prune hidden or exited selections under the existing identity rules.
+The cursor and multi-selected identity set are independent. Process Info, Files and clipboard copy use the cursor row. Kill uses the selected set when nonempty, otherwise the cursor, and always requires confirmation of fixed identities. Selected rows remain highlighted when the cursor moves, and the current cell distinguishes the cursor within highlighted rows. A marker before each selected PID and a persistent count distinguish selection without relying on color. Filtering, collapse and refresh prune hidden or exited selections under the existing identity rules.
 
 Tree indentation is bounded to preserve readable process names. A compressed-depth marker retains the indication of deeper ancestry; disclosure geometry uses the same bound as rendering. Process Info remains the full-name inspection route. Parentage, filtering and collapse semantics do not depend on the displayed indentation.
