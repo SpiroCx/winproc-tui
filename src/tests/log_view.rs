@@ -38,6 +38,7 @@ fn log_list_renders_session_rows() {
         ended_at: Some(ended_at),
         host: Some("PC".to_string()),
         tracked_names: vec!["app.exe".to_string()],
+        interval_seconds: Some(5),
         frame_count: 12,
         error: None,
     }];
@@ -52,7 +53,9 @@ fn log_list_renders_session_rows() {
     assert!(rendered.contains("Dir C:/logs"), "{rendered}");
     assert!(rendered.contains("d change dir"), "{rendered}");
     assert!(rendered.contains("00:02:05"), "{rendered}");
-    assert!(!rendered.contains("app.exe"), "{rendered}");
+    assert!(rendered.contains("app.exe"), "{rendered}");
+    assert!(rendered.contains("Interval 5s"), "{rendered}");
+    assert!(rendered.contains("Tracked names (1):"), "{rendered}");
     assert!(rendered.contains("winproc-tui-demo.log"), "{rendered}");
     assert!(
         !rendered.contains("C:/logs/winproc-tui-demo.log"),
@@ -80,6 +83,7 @@ fn log_list_shows_the_log_being_opened() {
         ended_at: None,
         host: Some("PC".to_string()),
         tracked_names: vec!["app.exe".to_string()],
+        interval_seconds: Some(5),
         frame_count: 0,
         error: None,
     }];
@@ -113,6 +117,7 @@ fn log_list_ignores_another_open_while_loading() {
             ended_at: None,
             host: None,
             tracked_names: Vec::new(),
+            interval_seconds: Some(5),
             frame_count: 0,
             error: None,
         })
@@ -412,6 +417,7 @@ fn log_list_click_selects_row() {
             ended_at: None,
             host: None,
             tracked_names: vec!["first.exe".to_string()],
+            interval_seconds: Some(5),
             frame_count: 0,
             error: None,
         },
@@ -423,6 +429,7 @@ fn log_list_click_selects_row() {
             ended_at: None,
             host: None,
             tracked_names: vec!["second.exe".to_string()],
+            interval_seconds: Some(5),
             frame_count: 0,
             error: None,
         },
@@ -466,6 +473,7 @@ fn log_list_double_click_opens_row() {
         ended_at: None,
         host: Some("PC".to_string()),
         tracked_names: vec!["app.exe".to_string()],
+        interval_seconds: Some(5),
         frame_count: 0,
         error: None,
     }];

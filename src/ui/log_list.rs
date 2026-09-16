@@ -27,7 +27,7 @@ const SHORTCUT_ITEMS: [(&str, &str); 5] = [
     ("Esc", "close"),
 ];
 pub(crate) const LOG_LIST_HEADER_LINE_COUNT: u16 = 2;
-const FOOTER_HEIGHT: u16 = 1;
+const FOOTER_HEIGHT: u16 = 5;
 const LOG_LIST_CONTENT_WIDTH: u16 = 74;
 const LOG_DIR_DIALOG_WIDTH: u16 = 78;
 const LOG_DIR_DIALOG_HEIGHT: u16 = 8;
@@ -65,10 +65,61 @@ pub(crate) fn draw_log_list(frame: &mut ratatui::Frame<'_>, area: Rect, app: &Ap
         false,
         theme,
     );
+    if let Some(summary) = app.log_summaries.get(app.log_list_index) {
+        let start = summary
+            .started_at
+            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| "--".to_string());
+        let end = summary
+            .ended_at
+            .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string())
+            .unwrap_or_else(|| "--".to_string());
+        let interval = summary
+            .interval_seconds
+            .map(|n| format!("{n}s"))
+            .unwrap_or_else(|| "--".to_string());
+        let mut preview = vec![Line::from(format!("{start} → {end} · Interval {interval}"))];
+        let names = if summary.tracked_names.is_empty() {
+            "Tracked names: --".to_string()
+        } else {
+            format!(
+                "Tracked names ({}): {}",
+                summary.tracked_names.len(),
+                summary.tracked_names.join(", ")
+            )
+        };
+        let mut wrapped =
+            super::process_info_dialog::wrap_display_width(&names, content_width.max(1));
+        if wrapped.len() > 2 {
+            wrapped.truncate(2);
+            wrapped[1] = format!(
+                "{}…",
+                wrapped[1]
+                    .chars()
+                    .take(content_width.saturating_sub(1))
+                    .collect::<String>()
+            );
+        }
+        preview.extend(wrapped.into_iter().map(Line::from));
+        frame.render_widget(
+            Paragraph::new(preview).style(Style::default().fg(theme.text)),
+            Rect::new(
+                layout.footer.x,
+                layout.footer.y,
+                layout.footer.width,
+                layout.footer.height.saturating_sub(2),
+            ),
+        );
+    }
     if !layout.footer.is_empty() {
         frame.render_widget(
             Paragraph::new(Line::from(log_list_shortcut_spans(theme))).alignment(Alignment::Left),
-            layout.footer,
+            Rect::new(
+                layout.footer.x,
+                layout.footer.bottom().saturating_sub(1),
+                layout.footer.width,
+                1,
+            ),
         );
     }
 }

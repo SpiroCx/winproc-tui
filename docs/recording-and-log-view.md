@@ -100,3 +100,5 @@ Loaded histories are not pruned to Live-history capacities. Missing process or m
 In Log view, the footer exposes a direct return to Live and explicit metric-to-Graph registration. Returning to Live is separate from quitting; Graph registration remains a user action.
 
 The Recording progress indicator remains visible and advances while the display is paused, independently of the frozen process snapshot.
+
+The log browser previews the selected recording's tracked names, recorded interval and time range from cached summaries. Selection performs no file reads or history reconstruction; the existing background summary scan reads recording metadata and the tail. Older metadata omissions appear as `--`, and invalid-file indications are retained.

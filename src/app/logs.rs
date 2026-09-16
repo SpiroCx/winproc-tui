@@ -33,6 +33,7 @@ pub(crate) struct LogSummary {
     pub(crate) ended_at: Option<DateTime<Local>>,
     pub(crate) host: Option<String>,
     pub(crate) tracked_names: Vec<String>,
+    pub(crate) interval_seconds: Option<u64>,
     pub(crate) frame_count: usize,
     pub(crate) error: Option<String>,
 }
@@ -256,6 +257,7 @@ fn load_v2_log(path: &Path, sort: SortSpec) -> Result<LoadedLog> {
     let mut snapshot = last_snapshot.context("log contains no frames")?;
     sort_process_rows(&mut snapshot.processes, sort);
     summary.tracked_names = tracked_names.clone();
+    summary.interval_seconds = session.interval_seconds;
     summary.error = None;
     Ok(LoadedLog {
         path: path.to_path_buf(),
@@ -326,6 +328,7 @@ fn load_v3_log(path: &Path, sort: SortSpec) -> Result<LoadedLog> {
     let mut snapshot = last_snapshot.context("log contains no frames")?;
     sort_process_rows(&mut snapshot.processes, sort);
     summary.tracked_names = tracked_names.clone();
+    summary.interval_seconds = session.interval_seconds;
     summary.error = None;
     Ok(LoadedLog {
         path: path.to_path_buf(),
@@ -564,6 +567,7 @@ fn empty_summary(path: &Path) -> LogSummary {
         ended_at: None,
         host: None,
         tracked_names: Vec::new(),
+        interval_seconds: None,
         frame_count: 0,
         error: None,
     }
@@ -665,6 +669,10 @@ fn update_summary_from_record(summary: &mut LogSummary, record: &Value) {
             .get("start")
             .and_then(Value::as_i64)
             .and_then(datetime_from_millis);
+        summary.interval_seconds = session
+            .get("interval")
+            .and_then(Value::as_u64)
+            .filter(|v| *v > 0);
         summary.tracked_names = session
             .get("tracked")
             .and_then(Value::as_array)
@@ -715,6 +723,21 @@ fn update_summary_from_record(summary: &mut LogSummary, record: &Value) {
 
     match record_type(record) {
         Some("session") => {
+            summary.interval_seconds = record
+                .get("interval_seconds")
+                .and_then(Value::as_u64)
+                .filter(|v| *v > 0);
+            summary.tracked_names = record
+                .get("tracked_names")
+                .and_then(Value::as_array)
+                .map(|names| {
+                    names
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(ToOwned::to_owned)
+                        .collect()
+                })
+                .unwrap_or_default();
             summary.started_at = summary
                 .started_at
                 .or_else(|| datetime_field(record, "started_at"));
@@ -1740,7 +1763,7 @@ mod tests {
 
         let summary = summarize_log(&path);
 
-        assert!(summary.tracked_names.is_empty());
+        assert_eq!(summary.tracked_names, ["ConfiguredButMissing.exe"]);
         assert_eq!(summary.frame_count, 0);
         assert!(summary.error.is_none());
         assert_eq!(
@@ -1813,5 +1836,28 @@ mod tests {
         let mut integers = [None; crate::app::log_format::PROCESS_U64_FIELD_COUNT];
         integers[process_u64::PRIVATE_BYTES] = Some(private_bytes);
         V3ProcessSample(process_id, floats, integers)
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    #[test]
+    fn summary_reads_interval_and_tracking_scope_from_session_metadata() {
+        for value in [
+            serde_json::json!({"s":{"v":3,"interval":5,"tracked":["one.exe","two.exe"]}}),
+            serde_json::json!({"record_type":"session","schema_version":2,"interval_seconds":5,"tracked_names":["one.exe","two.exe"]}),
+        ] {
+            let mut summary = empty_summary(Path::new("example.log"));
+            update_summary_from_record(&mut summary, &value);
+            assert_eq!(summary.interval_seconds, Some(5));
+            assert_eq!(summary.tracked_names, ["one.exe", "two.exe"]);
+        }
+        let mut legacy = empty_summary(Path::new("legacy.log"));
+        update_summary_from_record(
+            &mut legacy,
+            &serde_json::json!({"record_type":"session","schema_version":2}),
+        );
+        assert_eq!(legacy.interval_seconds, None);
     }
 }
