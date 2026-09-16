@@ -186,3 +186,7 @@ When behavior changes, update its canonical owner:
 ### Action feedback
 
 The existing footer boundary displays the latest action result or status without adding layout height. Normal successful samples do not replace it; errors still use their persistent dialogs where required. Dialogs also explain activity restrictions at the point of action and omit unavailable action shortcuts. Clipboard feedback describes the operation, never the copied Environment value.
+
+### Help overlay
+
+Help is an independent input layer above every dialog, including text editing and confirmations. Opening and closing it preserves the underlying dialog state and target. It owns keyboard and mouse input while visible. Help lays out complete rows for the available width; drawing, paging, and scrollbar geometry use the same wrapped content.

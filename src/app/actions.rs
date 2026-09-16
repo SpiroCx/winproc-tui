@@ -56,6 +56,27 @@ impl App {
             return Ok(());
         }
 
+        if self.show_help {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter | KeyCode::F(1) | KeyCode::Char('?') => {
+                    self.close_help();
+                }
+                KeyCode::Up => self.scroll_help_up(1),
+                KeyCode::Down => self.scroll_help_down(1),
+                KeyCode::PageUp => self.scroll_help_up(self.help_scroll.page_size),
+                KeyCode::PageDown => self.scroll_help_down(self.help_scroll.page_size),
+                KeyCode::Home => self.scroll_help_home(),
+                KeyCode::End => self.scroll_help_end(),
+                _ => {}
+            }
+            return Ok(());
+        }
+
+        if key.code == KeyCode::F(1) {
+            self.open_help();
+            return Ok(());
+        }
+
         if self.recording_error.is_some() {
             match key.code {
                 KeyCode::Esc | KeyCode::Enter => self.dismiss_recording_error(),
@@ -306,22 +327,6 @@ impl App {
                 {
                     self.push_log_dir_char(ch);
                 }
-                _ => {}
-            }
-            return Ok(());
-        }
-
-        if self.show_help {
-            match key.code {
-                KeyCode::Esc | KeyCode::Enter | KeyCode::F(1) | KeyCode::Char('?') => {
-                    self.close_help();
-                }
-                KeyCode::Up => self.scroll_help_up(1),
-                KeyCode::Down => self.scroll_help_down(1),
-                KeyCode::PageUp => self.scroll_help_up(self.help_scroll.page_size),
-                KeyCode::PageDown => self.scroll_help_down(self.help_scroll.page_size),
-                KeyCode::Home => self.scroll_help_home(),
-                KeyCode::End => self.scroll_help_end(),
                 _ => {}
             }
             return Ok(());
@@ -1408,6 +1413,24 @@ impl App {
     }
 
     pub(crate) fn on_mouse(&mut self, mouse: MouseEvent, screen_area: Rect) {
+        if self.show_help {
+            match mouse.kind {
+                MouseEventKind::Down(MouseButton::Left) => {
+                    self.start_help_scrollbar_drag(mouse.column, mouse.row, screen_area);
+                }
+                MouseEventKind::Up(MouseButton::Left) => {
+                    self.help_scroll.stop_drag();
+                }
+                MouseEventKind::Drag(MouseButton::Left) if self.help_scroll.dragging => {
+                    self.drag_help_scrollbar(mouse.row, screen_area);
+                }
+                MouseEventKind::ScrollUp => self.scroll_help_up(1),
+                MouseEventKind::ScrollDown => self.scroll_help_down(1),
+                _ => {}
+            }
+            return;
+        }
+
         let has_modal_focus = self.has_modal_focus();
         if has_modal_focus {
             self.clear_source_cell_click();
@@ -1585,24 +1608,6 @@ impl App {
         }
 
         if self.show_no_graph_metrics_warning {
-            return;
-        }
-
-        if self.show_help {
-            match mouse.kind {
-                MouseEventKind::Down(MouseButton::Left) => {
-                    self.start_help_scrollbar_drag(mouse.column, mouse.row, screen_area);
-                }
-                MouseEventKind::Up(MouseButton::Left) => {
-                    self.help_scroll.stop_drag();
-                }
-                MouseEventKind::Drag(MouseButton::Left) if self.help_scroll.dragging => {
-                    self.drag_help_scrollbar(mouse.row, screen_area);
-                }
-                MouseEventKind::ScrollUp => self.scroll_help_up(1),
-                MouseEventKind::ScrollDown => self.scroll_help_down(1),
-                _ => {}
-            }
             return;
         }
 

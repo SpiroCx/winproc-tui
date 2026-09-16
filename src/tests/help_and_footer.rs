@@ -57,7 +57,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
     let mut app = make_test_app(3, 10);
     app.show_help = true;
 
-    let rendered = render_app_to_text(&app, 150, 72);
+    let rendered = render_app_to_text(&app, 240, 90);
     let rendered_lower = rendered.to_ascii_lowercase();
 
     assert!(
@@ -197,7 +197,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
     assert!(!rendered.contains("F6"), "{rendered}");
     assert!(!rendered.contains("[ Close ]"), "{rendered}");
     assert!(
-        rendered.contains("F1/?") && rendered.contains("Toggle Help"),
+        rendered.contains("F1/?") && rendered.contains("Help over any dialog"),
         "{rendered}"
     );
     assert!(rendered.contains("F12"), "{rendered}");
@@ -250,7 +250,8 @@ fn help_dialog_header_and_shortcuts_use_footer_like_styles() {
     assert_eq!(key_cell.bg, theme.panel_alt);
     assert!(!key_cell.modifier.contains(ratatui::style::Modifier::BOLD));
 
-    let label_cell = &buffer[(key_x + "Ctrl+F ".len() as u16, key_y)];
+    let (label_x, label_y) = find_text_position(&buffer, "Edit Files").unwrap();
+    let label_cell = &buffer[(label_x, label_y)];
     assert_eq!(label_cell.fg, theme.text);
 }
 
@@ -646,4 +647,22 @@ fn action_feedback_is_visible_without_adding_footer_height() {
         assert!(text.lines().nth(58).unwrap().contains(message), "{text}");
         assert!(text.lines().last().unwrap().contains("F1/? Help"));
     }
+}
+
+#[test]
+fn help_overlays_and_preserves_an_active_dialog() {
+    let mut app = make_test_app(3, 10);
+    app.show_log_dir_dialog = true;
+    let before = app.log_dir_draft.clone();
+    app.on_key(KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE))
+        .unwrap();
+    assert!(app.show_help && app.show_log_dir_dialog);
+    app.on_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE))
+        .unwrap();
+    app.on_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE))
+        .unwrap();
+    app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+        .unwrap();
+    assert!(!app.show_help && app.show_log_dir_dialog);
+    assert_eq!(app.log_dir_draft, before);
 }

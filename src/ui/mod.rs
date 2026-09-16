@@ -152,9 +152,6 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
     if app.is_main_menu_open() {
         draw_main_menu(frame, area, app, theme);
     }
-    if app.show_help {
-        draw_help(frame, area, app, theme);
-    }
     if app.show_column_picker {
         draw_column_picker(frame, area, app, theme);
     }
@@ -235,6 +232,10 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
             frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
         }
         draw_recording_error(frame, area, app, theme);
+    }
+    if app.show_help {
+        frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
+        draw_help(frame, area, app, theme);
     }
 }
 

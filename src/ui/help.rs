@@ -90,7 +90,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "F1/?",
-        label: "Toggle Help",
+        label: "F1: Help over any dialog; ?: Help outside text input",
     },
     HelpItem {
         key: "F12",
@@ -707,10 +707,10 @@ const RIGHT_SECTIONS: &[HelpSection] = &[
 ];
 
 pub(crate) fn draw_help(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
-    let layout = help_modal().render(
+    let layout = help_modal(area).render(
         frame,
         area,
-        Text::from(help_lines(theme)),
+        Text::from(help_lines(theme, area.width.saturating_sub(4) as usize)),
         app.help_scroll.offset,
         false,
         theme,
@@ -725,19 +725,19 @@ pub(crate) fn draw_help(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, t
 
 #[cfg(test)]
 pub(crate) fn help_area(area: Rect) -> Rect {
-    help_modal().area(area)
+    help_modal(area).area(area)
 }
 
 pub(crate) fn help_page_size_for_screen(area: Rect) -> usize {
-    help_modal().page_size(area)
+    help_modal(area).page_size(area)
 }
 
-pub(crate) fn help_scroll_max_for_page_size(page_size: usize) -> usize {
-    help_modal().max_offset_for_page_size(page_size)
+pub(crate) fn help_scroll_max_for_page_size(page_size: usize, area: Rect) -> usize {
+    help_modal(area).max_offset_for_page_size(page_size)
 }
 
 pub(crate) fn help_scrollbar_area(area: Rect, page_size: usize) -> Option<Rect> {
-    help_modal().scrollbar_area(area, page_size)
+    help_modal(area).scrollbar_area(area, page_size)
 }
 
 #[derive(Clone)]
@@ -755,7 +755,7 @@ impl ColumnRow {
     }
 }
 
-fn help_lines(theme: Theme) -> Vec<Line<'static>> {
+fn help_lines(theme: Theme, width: usize) -> Vec<Line<'static>> {
     let title = help_title();
     let mut lines = vec![
         Line::from(Span::styled(
@@ -769,6 +769,12 @@ fn help_lines(theme: Theme) -> Vec<Line<'static>> {
     let left = render_column(LEFT_SECTIONS, theme);
     let right = render_column(RIGHT_SECTIONS, theme);
     let left_width = column_max_width(&left);
+    if left_width + COLUMN_SEPARATOR.chars().count() + column_max_width(&right) > width {
+        lines.extend(left.into_iter().map(|row| Line::from(row.spans)));
+        lines.push(Line::default());
+        lines.extend(right.into_iter().map(|row| Line::from(row.spans)));
+        return wrap_lines(lines, width);
+    }
     let max_rows = left.len().max(right.len());
 
     for i in 0..max_rows {
@@ -787,7 +793,7 @@ fn help_lines(theme: Theme) -> Vec<Line<'static>> {
         lines.push(Line::from(spans));
     }
 
-    lines
+    wrap_lines(lines, width)
 }
 
 fn help_hint() -> String {
@@ -908,28 +914,66 @@ fn section_header_width(section: &HelpSection) -> usize {
     width
 }
 
-fn help_content_line_count() -> u16 {
-    let left = column_line_count(LEFT_SECTIONS);
-    let right = column_line_count(RIGHT_SECTIONS);
-    (3 + left.max(right)) as u16
-}
-
-fn column_line_count(sections: &[HelpSection]) -> usize {
-    let mut lines = 0;
-    for (idx, section) in sections.iter().enumerate() {
-        if idx > 0 {
-            lines += 1;
+// Wrap styled spans explicitly so drawing, paging, and the scrollbar count the same rows.
+fn wrap_lines(lines: Vec<Line<'static>>, width: usize) -> Vec<Line<'static>> {
+    let width = width.max(1);
+    let mut wrapped = Vec::new();
+    for line in lines {
+        let mut row = Line::default();
+        for span in line.spans {
+            for word in span.content.split_inclusive(' ') {
+                let word_width = Span::raw(word).width();
+                if row.width() > 0 && row.width() + word_width > width {
+                    wrapped.push(row);
+                    row = Line::default();
+                }
+                if word_width <= width {
+                    row.spans.push(Span::styled(word.to_owned(), span.style));
+                    continue;
+                }
+                for ch in word.chars() {
+                    let cell = Span::styled(ch.to_string(), span.style);
+                    if row.width() + cell.width() > width {
+                        wrapped.push(row);
+                        row = Line::default();
+                    }
+                    row.spans.push(cell);
+                }
+            }
         }
-        lines += 1 + section.rows.len();
+        wrapped.push(row);
     }
-    lines
+    wrapped
 }
 
-fn help_modal() -> ScrollableModal {
+fn help_modal(area: Rect) -> ScrollableModal {
+    let width = help_content_width().min(area.width.saturating_sub(4));
     ScrollableModal::new(
         "HELP",
-        help_content_width(),
-        help_content_line_count(),
+        width,
+        help_lines(crate::ui::THEMES[0], width as usize).len() as u16,
         FOOTER_HEIGHT,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn every_help_item_remains_readable_at_120_columns() {
+        let lines = help_lines(crate::ui::THEMES[0], 116);
+        assert!(lines.iter().all(|line| line.width() <= 116));
+        let text: String = lines
+            .iter()
+            .flat_map(|l| l.spans.iter())
+            .flat_map(|s| s.content.chars())
+            .filter(|c| !c.is_whitespace())
+            .collect();
+        for section in LEFT_SECTIONS.iter().chain(RIGHT_SECTIONS) {
+            for item in section.rows {
+                let label: String = item.label.chars().filter(|c| !c.is_whitespace()).collect();
+                assert!(text.contains(&label), "{}", item.label);
+            }
+        }
+    }
 }

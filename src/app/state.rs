@@ -6764,7 +6764,10 @@ impl App {
 
     pub(crate) fn set_help_page_size(&mut self, page_size: usize) {
         let page_size = page_size.max(1);
-        let total = page_size.saturating_add(help_scroll_max_for_page_size(page_size));
+        let total = page_size.saturating_add(help_scroll_max_for_page_size(
+            page_size,
+            self.last_screen_area,
+        ));
         self.help_scroll.set_page_size(page_size, total);
     }
 
@@ -6788,7 +6791,10 @@ impl App {
 
     pub(crate) fn help_scroll_total(&self) -> usize {
         let page_size = self.help_scroll.page_size.max(1);
-        page_size.saturating_add(help_scroll_max_for_page_size(page_size))
+        page_size.saturating_add(help_scroll_max_for_page_size(
+            page_size,
+            self.last_screen_area,
+        ))
     }
 
     pub(crate) fn open_column_picker(&mut self) {
