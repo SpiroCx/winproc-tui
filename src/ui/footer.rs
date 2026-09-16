@@ -262,3 +262,24 @@ fn shortcut_spans_with_key_style(
     }
     spans
 }
+
+pub(crate) fn shortcut_action_at(
+    items: &[(&str, &str)],
+    area: Rect,
+    x: u16,
+    y: u16,
+) -> Option<usize> {
+    if y != area.y || area.height == 0 {
+        return None;
+    }
+    let mut left = area.x;
+    for (index, (key, label)) in items.iter().enumerate() {
+        let width = Line::from(format!("{key} {label}")).width() as u16;
+        let right = left.saturating_add(width);
+        if right <= area.right() && x >= left && x < right {
+            return Some(index);
+        }
+        left = right.saturating_add(2);
+    }
+    None
+}

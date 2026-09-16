@@ -186,3 +186,12 @@ fn column_picker_modal() -> ScrollableModal {
         FOOTER_HEIGHT,
     )
 }
+
+pub(crate) fn close_action_at(screen: Rect, x: u16, y: u16) -> bool {
+    super::footer::shortcut_action_at(
+        &SHORTCUT_ITEMS,
+        column_picker_modal().layout(screen).footer,
+        x,
+        y,
+    ) == Some(2)
+}

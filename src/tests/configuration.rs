@@ -322,7 +322,10 @@ fn process_panel_height_round_trips_manual_and_auto_settings() {
 fn default_runtime_config_selects_all_process_columns() {
     let runtime = build_runtime_config(AppConfig::default()).unwrap();
 
-    assert_eq!(runtime.process_columns, MetricColumn::ALL);
+    assert_eq!(
+        runtime.process_columns,
+        crate::model::ColumnPreset::Default.columns()
+    );
     assert_eq!(
         runtime.process_column_widths.resolved(SortColumn::Pid),
         SortColumn::Pid.default_width()

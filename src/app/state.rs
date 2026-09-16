@@ -1290,6 +1290,7 @@ pub(crate) struct App {
     pub(crate) process_view_mode: ProcessViewMode,
     pub(crate) collapsed_process_identities: HashSet<ProcessIdentity>,
     pub(crate) process_view_mode_hovered: bool,
+    pub(crate) process_column_control_hovered: Option<crate::ui::process_table::ColumnControl>,
     pub(crate) process_disclosure_hovered: Option<ProcessIdentity>,
     pub(crate) paused_display: Option<PausedDisplay>,
     pub(crate) log_view_display: Option<PausedDisplay>,
@@ -1579,6 +1580,7 @@ impl App {
             process_view_mode,
             collapsed_process_identities: HashSet::new(),
             process_view_mode_hovered: false,
+            process_column_control_hovered: None,
             process_disclosure_hovered: None,
             paused_display: None,
             log_view_display: None,
@@ -8014,6 +8016,30 @@ fn sample_time_span_seconds(first: DateTime<Local>, last: DateTime<Local>) -> u3
         .max(1)
         .min(i64::from(u32::MAX));
     span as u32
+}
+
+impl App {
+    pub(crate) fn activate_column_control(
+        &mut self,
+        control: crate::ui::process_table::ColumnControl,
+    ) {
+        use crate::ui::process_table::ColumnControl;
+        self.focused_panel = FocusedPanel::Processes;
+        match control {
+            ColumnControl::Narrow => self.narrow_selected_process_column(),
+            ColumnControl::Widen => self.widen_selected_process_column(),
+            ColumnControl::Previous | ColumnControl::Next => {
+                let range = self.visible_process_metric_range();
+                let index = if control == ColumnControl::Previous {
+                    range.start.saturating_sub(1)
+                } else {
+                    range.end.min(self.process_columns.len().saturating_sub(1))
+                };
+                self.selected_process_column_index = index + FIXED_PROCESS_COLUMN_COUNT;
+                self.ensure_selected_process_column_visible();
+            }
+        }
+    }
 }
 
 #[cfg(test)]

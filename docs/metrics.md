@@ -16,7 +16,7 @@ Live sampling is requested once per second. The header derives freshness from th
 
 ## Process Table Columns
 
-The Process table can select the 24 columns included in `MetricColumn::ALL`. All 24 are selected when no saved column selection exists.
+The Process table can select the 24 columns included in `MetricColumn::ALL`. Fresh configurations select CPU, private bytes, private working set, threads, handles, GPU usage and dedicated memory, and read/write I/O rates. The remaining columns, including .NET metrics, remain explicitly selectable; saved column selections are retained.
 Most columns are numeric metrics that can be sorted, graphed, sampled, and recorded.
 `Full Path` is a text column for process identification; it can be displayed, sorted, copied, filtered, and recorded, but it is not a Graph metric.
 

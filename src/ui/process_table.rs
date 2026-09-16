@@ -362,10 +362,34 @@ fn process_table_block<'a>(
         app.panel_has_focus(FocusedPanel::Processes) || input_active,
     );
     if let Some(indicator) = overflow_indicator {
+        let middle = indicator
+            .trim_start_matches('‹')
+            .trim_end_matches('›')
+            .to_string();
         block = block.title_top(
-            Line::from(Span::styled(indicator, Style::default().fg(theme.muted))).right_aligned(),
+            Line::from(vec![
+                Span::styled(
+                    "‹",
+                    column_control_style(ColumnControl::Previous, app, theme),
+                ),
+                Span::styled(middle, Style::default().fg(theme.muted)),
+                Span::styled("›", column_control_style(ColumnControl::Next, app, theme)),
+            ])
+            .right_aligned(),
         );
     }
+    block = block.title_bottom(Line::from(vec![
+        Span::styled(column_width_label(app), Style::default().fg(theme.muted)),
+        Span::styled(
+            "[-]",
+            column_control_style(ColumnControl::Narrow, app, theme),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            "[+]",
+            column_control_style(ColumnControl::Widen, app, theme),
+        ),
+    ]));
     if input_active {
         block.border_style(Style::default().fg(theme.focus_border))
     } else {
@@ -1664,7 +1688,7 @@ mod tests {
         );
         assert_eq!(
             full_path_column_render_width(&visible, &rects),
-            Some(MetricColumn::FullPath.width() + 62)
+            Some(MetricColumn::FullPath.width() + 54)
         );
     }
 
@@ -1777,5 +1801,75 @@ mod tests {
             widths.resolved(SortColumn::Metric(MetricColumn::PrivateBytes)),
             crate::model::columns::PROCESS_COLUMN_WIDTH_MAX
         );
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ColumnControl {
+    Previous,
+    Next,
+    Narrow,
+    Widen,
+}
+
+fn column_width_label(app: &App) -> String {
+    format!("Width: {} ", app.selected_process_column().label())
+}
+
+pub(crate) fn column_control_areas(area: Rect, app: &App) -> Vec<(ColumnControl, Rect)> {
+    let mut controls = Vec::new();
+    let visible = visible_metric_columns(
+        area.width,
+        &app.process_columns,
+        app.process_metric_column_offset,
+        &app.process_column_widths,
+    );
+    if let Some(label) = process_metric_overflow_indicator(&visible, app.process_columns.len()) {
+        let width = Line::from(label).width() as u16;
+        if width + 2 <= area.width {
+            let start = area.right() - 1 - width;
+            if app.process_metric_column_offset > 0 {
+                controls.push((ColumnControl::Previous, Rect::new(start, area.y, 1, 1)));
+            }
+            if visible
+                .last()
+                .is_none_or(|(index, _)| index + 1 < app.process_columns.len())
+            {
+                controls.push((
+                    ColumnControl::Next,
+                    Rect::new(area.right() - 2, area.y, 1, 1),
+                ));
+            }
+        }
+    }
+    let prefix_width = Line::from(column_width_label(app)).width() as u16;
+    if area.width >= prefix_width + 10 && area.height > 0 {
+        controls.push((
+            ColumnControl::Narrow,
+            Rect::new(area.x + 1 + prefix_width, area.bottom() - 1, 3, 1),
+        ));
+        controls.push((
+            ColumnControl::Widen,
+            Rect::new(area.x + 5 + prefix_width, area.bottom() - 1, 3, 1),
+        ));
+    }
+    controls
+}
+
+pub(crate) fn column_control_at(area: Rect, app: &App, x: u16, y: u16) -> Option<ColumnControl> {
+    column_control_areas(area, app)
+        .into_iter()
+        .find(|(_, rect)| rect.contains(ratatui::layout::Position::new(x, y)))
+        .map(|(control, _)| control)
+}
+
+fn column_control_style(control: ColumnControl, app: &App, theme: Theme) -> Style {
+    if app.process_column_control_hovered == Some(control) {
+        Style::default()
+            .fg(theme.text)
+            .bg(theme.focus_surface)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.key_hint)
     }
 }

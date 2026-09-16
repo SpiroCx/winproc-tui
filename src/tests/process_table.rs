@@ -328,7 +328,7 @@ fn process_metric_columns_scroll_only_when_selection_leaves_visible_range() {
         .unwrap();
 
     let after_left = render_app_to_text(&app, screen.width, screen.height);
-    let content_height = screen_layout(screen)[2].y as usize;
+    let content_height = screen_layout(screen)[2].y.saturating_sub(1) as usize;
     assert_eq!(
         before.lines().take(content_height).collect::<Vec<_>>(),
         after_left.lines().take(content_height).collect::<Vec<_>>()
@@ -1085,4 +1085,79 @@ fn process_table_tracked_only_title_checkbox_click_toggles_filter() {
 
     assert!(!app.watch_enabled);
     assert_eq!(app.visible_process_count(), 2);
+}
+
+#[test]
+fn process_columns_mouse_workflow_covers_picker_range_and_width() {
+    let mut app = make_test_app(3, 10);
+    app.process_columns = MetricColumn::ALL.to_vec();
+    let screen = Rect::new(0, 0, 180, 60);
+    crate::app::sync_layout_state(&mut app, screen);
+    let area = main_panel_areas_for_app(screen, &app).processes.area;
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (x, y) = super::support::find_text_position(&buffer, "PrivBytes").unwrap();
+    app.on_mouse(
+        crossterm::event::MouseEvent {
+            kind: crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Right),
+            column: x,
+            row: y,
+            modifiers: KeyModifiers::NONE,
+        },
+        screen,
+    );
+    assert!(app.show_column_picker);
+    assert_eq!(
+        MetricColumn::ALL[app.column_picker_index],
+        MetricColumn::PrivateBytes
+    );
+    let columns = app.process_columns.clone();
+    let dialog = render_app_to_buffer(&app, 180, 60);
+    let (cx, cy) = super::support::find_text_position(&dialog, "[x] CPU%").unwrap();
+    app.on_mouse(super::support::left_click(cx, cy), screen);
+    assert!(app.show_column_picker);
+    assert!(!app.process_columns.contains(&MetricColumn::CpuPercent));
+    assert_ne!(app.process_columns, columns);
+    let (x, y) = super::support::find_text_position(&dialog, "Enter/Esc close").unwrap();
+    app.on_mouse(super::support::left_click(x + 10, y), screen);
+    assert!(!app.show_column_picker);
+    for _ in 0..30 {
+        let next = ui::process_table::column_control_areas(area, &app)
+            .into_iter()
+            .find(|(control, _)| *control == ui::process_table::ColumnControl::Next);
+        let Some((_, rect)) = next else {
+            break;
+        };
+        app.on_mouse(super::support::left_click(rect.x, rect.y), screen);
+    }
+    assert_eq!(
+        app.selected_process_column(),
+        SortColumn::Metric(MetricColumn::FullPath)
+    );
+    assert!(app.process_metric_column_offset > 0);
+    for _ in 0..30 {
+        let previous = ui::process_table::column_control_areas(area, &app)
+            .into_iter()
+            .find(|(control, _)| *control == ui::process_table::ColumnControl::Previous);
+        let Some((_, rect)) = previous else {
+            break;
+        };
+        app.on_mouse(super::support::left_click(rect.x, rect.y), screen);
+    }
+    assert_eq!(app.process_metric_column_offset, 0);
+    app.selected_process_column_index = 1;
+    let original = app.process_column_widths.resolved(SortColumn::ProcessName);
+    for (control, expected) in [
+        (ui::process_table::ColumnControl::Widen, original + 1),
+        (ui::process_table::ColumnControl::Narrow, original),
+    ] {
+        let (_, rect) = ui::process_table::column_control_areas(area, &app)
+            .into_iter()
+            .find(|(candidate, _)| *candidate == control)
+            .unwrap();
+        app.on_mouse(super::support::left_click(rect.x, rect.y), screen);
+        assert_eq!(
+            app.process_column_widths.resolved(SortColumn::ProcessName),
+            expected
+        );
+    }
 }

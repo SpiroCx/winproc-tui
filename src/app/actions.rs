@@ -1497,6 +1497,45 @@ impl App {
             return;
         }
         let has_modal_focus = self.has_modal_focus();
+        let process_area = main_panel_areas_for_app(screen_area, self).processes.area;
+        self.process_column_control_hovered = if has_modal_focus {
+            None
+        } else {
+            crate::ui::process_table::column_control_at(process_area, self, mouse.column, mouse.row)
+        };
+        if !has_modal_focus {
+            if mouse.kind == MouseEventKind::Down(MouseButton::Right)
+                && mouse.row == process_area.y + 1
+                && let Some(index) = process_metric_column_index_at(
+                    process_area,
+                    mouse.column,
+                    &self.process_columns,
+                    self.process_metric_column_offset,
+                    &self.process_column_widths,
+                )
+            {
+                self.selected_process_column_index = index;
+                self.open_column_picker();
+                if let Some(column) = index
+                    .checked_sub(2)
+                    .and_then(|index| self.process_columns.get(index))
+                {
+                    self.column_picker_index = crate::model::MetricColumn::ALL
+                        .iter()
+                        .position(|item| item == column)
+                        .unwrap_or(0);
+                    self.set_column_picker_page_size(self.column_picker_scroll.page_size);
+                }
+                return;
+            }
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && let Some(control) = self.process_column_control_hovered
+            {
+                self.activate_column_control(control);
+                return;
+            }
+        }
+
         if has_modal_focus {
             self.clear_source_cell_click();
             self.graph_hovered_target = None;
@@ -1684,6 +1723,12 @@ impl App {
         }
 
         if self.show_column_picker {
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && crate::ui::column_picker::close_action_at(screen_area, mouse.column, mouse.row)
+            {
+                self.close_column_picker();
+                return;
+            }
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     if self.start_column_picker_scrollbar_drag(mouse.column, mouse.row, screen_area)

@@ -355,6 +355,7 @@ pub(in crate::tests) fn make_test_app_with_workers(
         process_view_mode: app::ProcessViewMode::Flat,
         collapsed_process_identities: std::collections::HashSet::new(),
         process_view_mode_hovered: false,
+        process_column_control_hovered: None,
         process_disclosure_hovered: None,
         paused_display: None,
         log_view_display: None,

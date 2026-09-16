@@ -31,7 +31,7 @@ impl SortColumn {
     pub(crate) fn default_width(self) -> u16 {
         match self {
             Self::Pid => 6,
-            Self::ProcessName => 18,
+            Self::ProcessName => 26,
             Self::Metric(column) => column.width(),
         }
     }
@@ -491,7 +491,17 @@ pub(crate) enum ColumnPreset {
 impl ColumnPreset {
     pub(crate) fn columns(self) -> &'static [MetricColumn] {
         match self {
-            Self::Default => &MetricColumn::ALL,
+            Self::Default => &[
+                MetricColumn::CpuPercent,
+                MetricColumn::PrivateBytes,
+                MetricColumn::WorksetPrivateBytes,
+                MetricColumn::ThreadCount,
+                MetricColumn::HandleCount,
+                MetricColumn::GpuPercent,
+                MetricColumn::GpuDedicatedBytes,
+                MetricColumn::IoReadBytesPerSec,
+                MetricColumn::IoWriteBytesPerSec,
+            ],
             Self::Memory => &[
                 MetricColumn::CpuPercent,
                 MetricColumn::PrivateBytes,
@@ -712,10 +722,20 @@ mod tests {
     }
 
     #[test]
-    fn default_preset_selects_all_columns() {
+    fn default_preset_keeps_common_metrics_and_io_visible() {
         assert_eq!(
             ColumnPreset::Default.effective_columns(),
-            &MetricColumn::ALL
+            &[
+                MetricColumn::CpuPercent,
+                MetricColumn::PrivateBytes,
+                MetricColumn::WorksetPrivateBytes,
+                MetricColumn::ThreadCount,
+                MetricColumn::HandleCount,
+                MetricColumn::GpuPercent,
+                MetricColumn::GpuDedicatedBytes,
+                MetricColumn::IoReadBytesPerSec,
+                MetricColumn::IoWriteBytesPerSec
+            ]
         );
     }
 

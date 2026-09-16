@@ -221,7 +221,7 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "c",
-        label: "Pick columns",
+        label: "Pick columns (also right-click header)",
     },
     HelpItem {
         key: "g",
@@ -534,6 +534,18 @@ const AB_ROWS: &[HelpItem] = &[
 ];
 
 const MOUSE_ROWS: &[HelpItem] = &[
+    HelpItem {
+        key: "Right-click column name",
+        label: "Open Columns; click checkboxes to apply",
+    },
+    HelpItem {
+        key: "Click column range arrows",
+        label: "Reveal earlier/later columns",
+    },
+    HelpItem {
+        key: "Click Width [-]/[+]",
+        label: "Resize selected process column",
+    },
     HelpItem {
         key: "Click [MENU]",
         label: "Open main menu",

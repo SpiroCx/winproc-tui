@@ -662,6 +662,8 @@ fn tracked_process_exit_adds_ghost_row() {
 fn exited_process_name_shows_close_time() {
     let (sampling_worker, _request_rx, result_tx) = SamplingWorker::test_pair();
     let mut app = make_test_app_with_worker(1, 10, sampling_worker);
+    app.process_column_widths
+        .set(crate::model::SortColumn::ProcessName, 18);
     app.snapshot.processes[0].name = "target.exe".to_string();
     app.add_selected_process_to_watch_list();
     app.snapshot.captured_at = Local.with_ymd_and_hms(2026, 5, 9, 12, 34, 56).unwrap();
