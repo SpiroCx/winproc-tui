@@ -529,3 +529,30 @@ fn narrow_process_column_keeps_disclosure_draw_and_hit_test_aligned() {
     assert_eq!(app.visible_process_count(), 3);
     assert!(app.watch_list.is_empty());
 }
+
+#[test]
+fn deep_tree_preserves_name_width_and_disclosure_target() {
+    let mut app = make_test_app(15, 30);
+    for (index, process) in app.snapshot.processes.iter_mut().enumerate() {
+        process.pid = index as u32 + 100;
+        process.parent_pid = (index > 0).then_some(index as u32 + 99);
+        process.name = format!("branch-{index:02}.exe");
+    }
+    app.process_view_mode = ProcessViewMode::Tree;
+    app.process_column_widths.set(SortColumn::ProcessName, 24);
+    app.rebuild_visible_process_cache();
+    let screen = Rect::new(0, 0, 120, 60);
+    let buffer = render_app_to_buffer(&app, 120, 60);
+    let (name_x, name_y) = find_text_position(&buffer, "branch-12.exe").unwrap();
+    assert_eq!(buffer[(name_x - 3, name_y)].symbol(), "…");
+    assert_eq!(buffer[(name_x - 2, name_y)].symbol(), "▾");
+    app.on_mouse(left_click(name_x - 2, name_y), screen);
+    assert_eq!(app.visible_process_count(), 13);
+    assert!(app.watch_list.is_empty());
+    app.begin_filter_edit();
+    for ch in "branch-14".chars() {
+        app.push_filter_char(ch);
+    }
+    assert_eq!(app.visible_process_count(), 15);
+    assert!(render_app_to_text(&app, 120, 60).contains("branch-14.exe"));
+}

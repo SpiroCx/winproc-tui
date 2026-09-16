@@ -124,6 +124,10 @@ const GLOBAL_ROWS: &[HelpItem] = &[
 
 const PROCESSES_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "… in Tree indentation",
+        label: "Deeper ancestors compressed; Enter opens the full process name",
+    },
+    HelpItem {
         key: "* before PID",
         label: "Multi-selected row; count stays in Processes title",
     },

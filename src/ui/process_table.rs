@@ -666,7 +666,12 @@ fn process_tree_prefix(
     let offset = process_tree_disclosure_offset(row.tree_depth, width);
     let mut spans = Vec::new();
     if offset > 0 {
-        spans.push(Span::styled(" ".repeat(offset), base_style));
+        let indent = if row.tree_depth.saturating_mul(2) > offset {
+            format!("{}…", " ".repeat(offset.saturating_sub(1)))
+        } else {
+            " ".repeat(offset)
+        };
+        spans.push(Span::styled(indent, base_style));
     }
     let glyph = match (row.tree_has_children, row.tree_expanded) {
         (true, true) => "▾",
@@ -690,9 +695,10 @@ fn process_tree_prefix(
 }
 
 fn process_tree_disclosure_offset(depth: usize, width: u16) -> usize {
+    let limit = (width / 3).min(width.saturating_sub(14));
     depth
         .saturating_mul(2)
-        .min(usize::from(width.saturating_sub(2)))
+        .min(usize::from(limit.max(u16::from(depth > 0 && width > 3))))
 }
 
 pub(crate) fn process_tree_disclosure_hit_test(
