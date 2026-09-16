@@ -193,7 +193,7 @@ The existing footer boundary displays transient action results without adding la
 
 ### Help overlay
 
-Help is an independent input layer above every dialog, including text editing and confirmations. Opening and closing it preserves the underlying dialog state and target. It owns keyboard and mouse input while visible. Help lays out complete rows for the available width; drawing, paging, and scrollbar geometry use the same wrapped content.
+Help is an independent input layer above every dialog, including text editing and confirmations. Opening and closing it preserves the underlying dialog state and target. It owns keyboard and mouse input while visible. Help initially navigates to the section for the active panel or dialog, including Process Info and its Network and Scheduling tabs. A compact section picker and adjacent-section navigation share the complete scrollable reference; selecting a section changes only Help state. Closing the picker returns to the same Help position, and closing Help restores the caller without changing focus, target, selection, or text drafts. Help lays out complete rows for the available width; drawing, paging, section destinations, and scrollbar geometry use the same wrapped content.
 
 ### Appearance
 

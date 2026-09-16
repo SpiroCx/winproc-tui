@@ -57,7 +57,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
     let mut app = make_test_app(3, 10);
     app.show_help = true;
 
-    let rendered = render_app_to_text(&app, 240, 90);
+    let rendered = render_app_to_text(&app, 240, 120);
     let rendered_lower = rendered.to_ascii_lowercase();
 
     assert!(
@@ -265,7 +265,7 @@ fn help_dialog_header_and_shortcuts_use_footer_like_styles() {
     assert_eq!(key_cell.bg, theme.panel_alt);
     assert!(!key_cell.modifier.contains(ratatui::style::Modifier::BOLD));
 
-    let (label_x, label_y) = find_text_position(&buffer, "Edit Files").unwrap();
+    let (label_x, label_y) = find_text_position(&buffer, "Edit filter").unwrap();
     let label_cell = &buffer[(label_x, label_y)];
     assert_eq!(label_cell.fg, theme.text);
 }
@@ -988,4 +988,213 @@ fn latest_feedback_uses_paused_or_recorded_source_and_never_negative_zero() {
     assert_eq!(buffer.area, Rect::new(0, 0, 180, 60));
     assert!(text.lines().nth(58).unwrap().starts_with("Tracking added:"));
     assert!(text.lines().last().unwrap().contains("F1/? Help"));
+}
+
+#[test]
+fn help_enters_the_current_panel_section_at_180_by_60() {
+    let mut app = make_test_app(3, 10);
+    assign_private_graph(&mut app);
+    let screen = Rect::new(0, 0, 180, 60);
+    crate::app::sync_layout_state(&mut app, screen);
+    for (panel, section, control) in [
+        (
+            FocusedPanel::Processes,
+            "Processes",
+            "Toggle Flat / Tree view",
+        ),
+        (
+            FocusedPanel::DetailsGraph,
+            "Graph Workspace",
+            "Remove active Graph",
+        ),
+        (
+            FocusedPanel::DetailsSamples,
+            "Samples",
+            "Select older sample",
+        ),
+        (FocusedPanel::System, "MEM/GPU", "Move selected metric"),
+        (
+            FocusedPanel::SystemActivity,
+            "NW/DISK",
+            "Move selected metric",
+        ),
+        (FocusedPanel::Cpu, "CPU", "Per-core"),
+    ] {
+        app.focused_panel = panel;
+        let selected = app.process_table_state.selected();
+        let active_graph = app.active_graph_id;
+        app.on_key(KeyCode::F(1).into()).unwrap();
+        assert_eq!(ui::help::section_titles()[app.help_section], section);
+        let text = render_app_to_text(&app, 180, 60);
+        assert!(text.contains(section), "{section}: {text}");
+        assert!(text.contains(control), "{section}: {text}");
+        assert!(text.contains("s Sections"));
+        app.on_key(KeyCode::Esc.into()).unwrap();
+        assert_eq!(app.focused_panel, panel);
+        assert_eq!(app.process_table_state.selected(), selected);
+        assert_eq!(app.active_graph_id, active_graph);
+    }
+}
+
+#[test]
+fn help_sections_share_wrapped_positions_and_picker_cancel_preserves_scroll() {
+    let mut app = make_test_app(3, 10);
+    for (width, height) in [(100, 25), (180, 60), (240, 60)] {
+        let screen = Rect::new(0, 0, width, height);
+        crate::app::sync_layout_state(&mut app, screen);
+        app.open_help();
+        for (index, title) in ui::help::section_titles().iter().enumerate() {
+            app.jump_help_section(index);
+            let text = render_app_to_text(&app, width, height);
+            assert!(text.contains(title), "{width}x{height}, {title}: {text}");
+        }
+        app.jump_help_section(ui::help::section_index("Graph Workspace"));
+        app.scroll_help_down(1);
+        let before = (app.help_section, app.help_scroll.offset);
+        app.on_key(KeyCode::Char('s').into()).unwrap();
+        app.on_key(KeyCode::Home.into()).unwrap();
+        app.on_key(KeyCode::Esc.into()).unwrap();
+        assert_eq!((app.help_section, app.help_scroll.offset), before);
+        app.on_key(KeyCode::Char('s').into()).unwrap();
+        app.on_key(KeyCode::Home.into()).unwrap();
+        app.on_key(KeyCode::Down.into()).unwrap();
+        app.on_key(KeyCode::Enter.into()).unwrap();
+        assert_eq!(ui::help::section_titles()[app.help_section], "Processes");
+        assert!(app.show_help);
+        assert!(app.help_section_picker.is_none());
+        app.on_key(KeyCode::Right.into()).unwrap();
+        assert_eq!(ui::help::section_titles()[app.help_section], "Process Info");
+        app.on_key(KeyCode::Left.into()).unwrap();
+        assert_eq!(ui::help::section_titles()[app.help_section], "Processes");
+        app.close_help();
+    }
+}
+
+#[test]
+fn help_section_picker_uses_clickable_footer_and_hover_does_not_navigate() {
+    use super::support::{left_click, mouse_move};
+    let mut app = make_test_app(3, 10);
+    let screen = Rect::new(0, 0, 180, 60);
+    crate::app::sync_layout_state(&mut app, screen);
+    app.open_help();
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (x, y) = find_text_position(&buffer, "s Sections").unwrap();
+    app.on_mouse(left_click(x + 3, y), screen);
+    assert!(app.help_section_picker.is_some());
+    let before = (
+        app.help_section,
+        app.help_section_picker,
+        app.help_scroll.offset,
+    );
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (x, y) = find_text_position(&buffer, "Network endpoints").unwrap();
+    let outcome = crate::app::handle_mouse_event(&mut app, mouse_move(x, y), screen);
+    assert!(outcome.dirty);
+    assert_eq!(
+        (
+            app.help_section,
+            app.help_section_picker,
+            app.help_scroll.offset
+        ),
+        before
+    );
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    assert_eq!(buffer[(x, y)].bg, app.theme().focus_surface);
+    assert!(
+        buffer[(x, y)]
+            .modifier
+            .contains(ratatui::style::Modifier::BOLD)
+    );
+    app.on_mouse(left_click(x, y), screen);
+    assert!(app.help_section_picker.is_none());
+    assert!(app.shortcut_hovered.is_none());
+    assert_eq!(
+        ui::help::section_titles()[app.help_section],
+        "Network endpoints"
+    );
+    assert!(render_app_to_text(&app, 180, 60).contains("Endpoints are never recorded"));
+
+    // All sections remain selectable when only a few rows fit.
+    let small = Rect::new(0, 0, 80, 12);
+    crate::app::sync_layout_state(&mut app, small);
+    app.on_key(KeyCode::Char('s').into()).unwrap();
+    app.on_key(KeyCode::End.into()).unwrap();
+    let buffer = render_app_to_buffer(&app, 80, 12);
+    let (x, y) = find_text_position(&buffer, "A/B comparison").unwrap();
+    app.on_mouse(left_click(x, y), small);
+    assert_eq!(
+        ui::help::section_titles()[app.help_section],
+        "A/B comparison"
+    );
+}
+
+#[test]
+fn help_preserves_process_info_target_focus_and_literal_query() {
+    use crate::app::{ProcessInfoFocus, ProcessInfoTab};
+    let mut app = make_test_app(3, 10);
+    assign_private_graph(&mut app);
+    crate::app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 60));
+    app.open_selected_process_info_dialog().unwrap();
+    app.process_info_tab = ProcessInfoTab::Environment;
+    app.process_info_focus = ProcessInfoFocus::Content;
+    app.process_environment_filter = "日本語".into();
+    app.process_environment_filter_cursor = app.process_environment_filter.len();
+    app.on_key(KeyCode::Char('?').into()).unwrap();
+    assert!(!app.show_help);
+    assert_eq!(app.process_environment_filter, "日本語?");
+    let target = app.process_info_target.as_ref().unwrap().identity.clone();
+    let generation = app.process_info_generation;
+    let focus = app.focused_panel;
+    let cursor = app.process_environment_filter_cursor;
+    app.on_key(KeyCode::F(1).into()).unwrap();
+    assert_eq!(ui::help::section_titles()[app.help_section], "Process Info");
+    assert!(render_app_to_text(&app, 180, 60).contains("Switch Info tabs"));
+    for code in [
+        KeyCode::Char('x'),
+        KeyCode::Char('s'),
+        KeyCode::Down,
+        KeyCode::Enter,
+        KeyCode::PageDown,
+        KeyCode::Esc,
+    ] {
+        app.on_key(code.into()).unwrap();
+    }
+    assert!(!app.show_help && app.show_process_info_dialog);
+    assert_eq!(app.process_info_target.as_ref().unwrap().identity, target);
+    assert_eq!(app.process_info_generation, generation);
+    assert_eq!(app.focused_panel, focus);
+    assert_eq!(app.process_info_tab, ProcessInfoTab::Environment);
+    assert_eq!(app.process_info_focus, ProcessInfoFocus::Content);
+    assert_eq!(app.process_environment_filter, "日本語?");
+    assert_eq!(app.process_environment_filter_cursor, cursor);
+}
+
+#[test]
+fn help_preserves_network_query_selection_and_workspace() {
+    let mut app = make_test_app(3, 10);
+    crate::app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 60));
+    app.open_network_browser();
+    app.network_browser.filter = "127".into();
+    app.network_browser.cursor = 3;
+    app.network_browser.editing = true;
+    app.on_key(KeyCode::Char('?').into()).unwrap();
+    assert!(!app.show_help);
+    assert_eq!(app.network_browser.filter, "127?");
+    let generation = app.network_browser.generation;
+    let selected = app.network_browser.selected;
+    app.on_key(KeyCode::F(1).into()).unwrap();
+    assert_eq!(
+        ui::help::section_titles()[app.help_section],
+        "Network endpoints"
+    );
+    assert!(render_app_to_text(&app, 180, 60).contains("Network endpoints"));
+    app.on_key(KeyCode::Char('s').into()).unwrap();
+    app.on_key(KeyCode::End.into()).unwrap();
+    app.on_key(KeyCode::Enter.into()).unwrap();
+    app.on_key(KeyCode::F(1).into()).unwrap();
+    assert!(app.network_browser.visible && app.network_browser.editing);
+    assert_eq!(app.network_browser.filter, "127?");
+    assert_eq!(app.network_browser.cursor, 4);
+    assert_eq!(app.network_browser.generation, generation);
+    assert_eq!(app.network_browser.selected, selected);
 }

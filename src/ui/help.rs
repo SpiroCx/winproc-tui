@@ -17,7 +17,9 @@ use crate::{
 const COLUMN_SEPARATOR: &str = "  │  ";
 const KEY_LABEL_GAP: usize = 2;
 const FOOTER_HEIGHT: u16 = 1;
-const HELP_SHORTCUT_ITEMS: [(&str, &str); 4] = [
+const HELP_SHORTCUT_ITEMS: [(&str, &str); 6] = [
+    ("s", "Sections"),
+    ("←/→", "Section"),
     ("↑/↓", "Scroll"),
     ("PageUp/PageDown", "Page"),
     ("Home/End", "Jump"),
@@ -114,7 +116,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "F1/?",
-        label: "F1: Help over any dialog; ?: Help outside text input",
+        label: "F1: Help over any dialog at current task; ?: outside text input",
     },
     HelpItem {
         key: "F12",
@@ -158,14 +160,6 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     HelpItem {
         key: "Enter / Ctrl+C / d",
         label: "Inspect cursor / copy cursor / kill selected set (or cursor)",
-    },
-    HelpItem {
-        key: "Ctrl+F (Info)",
-        label: "Edit Files / DLL / Environment / Network filter",
-    },
-    HelpItem {
-        key: "Home/End, ←/→ (filter)",
-        label: "Move text cursor; Ctrl+U clears text",
     },
     HelpItem {
         key: "v",
@@ -248,6 +242,13 @@ const PROCESSES_ROWS: &[HelpItem] = &[
         label: "Open System Info",
     },
     HelpItem {
+        key: "d/Delete",
+        label: "Kill selected live process",
+    },
+];
+
+const PROCESS_INFO_ROWS: &[HelpItem] = &[
+    HelpItem {
         key: "Ctrl+←/→",
         label: "Switch Info tabs",
     },
@@ -258,10 +259,6 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     HelpItem {
         key: "←/→",
         label: "Switch focused Info tabs",
-    },
-    HelpItem {
-        key: "d/Delete",
-        label: "Kill selected live process",
     },
     HelpItem {
         key: "Ctrl+U",
@@ -302,6 +299,26 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     HelpItem {
         key: "Files: Auto",
         label: "2–10s while visible; >1s/error stops; Ctrl+U retry",
+    },
+    HelpItem {
+        key: "Ctrl+F (Info)",
+        label: "Edit Files / DLL / Environment / Network filter",
+    },
+    HelpItem {
+        key: "Home/End, ←/→ (filter)",
+        label: "Move text cursor; Ctrl+U clears text",
+    },
+    HelpItem {
+        key: "Type (DLL / Environment)",
+        label: "Filter names and values; F1 opens Help without editing text",
+    },
+    HelpItem {
+        key: "Enter / Esc",
+        label: "Open selected row detail / return or close",
+    },
+    HelpItem {
+        key: "Ctrl+C",
+        label: "Copy current tab or selected detail",
     },
 ];
 
@@ -718,6 +735,11 @@ const LEFT_SECTIONS: &[HelpSection] = &[
         rows: PROCESSES_ROWS,
     },
     HelpSection {
+        title: "Process Info",
+        focus_hint: Some("fixed process target"),
+        rows: PROCESS_INFO_ROWS,
+    },
+    HelpSection {
         title: "Mouse",
         focus_hint: None,
         rows: MOUSE_ROWS,
@@ -783,10 +805,15 @@ const RIGHT_SECTIONS: &[HelpSection] = &[
 ];
 
 pub(crate) fn draw_help(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
-    let layout = help_modal(area).render(
+    if app.help_section_picker.is_some() {
+        draw_section_picker(frame, area, app, theme);
+        return;
+    }
+    let modal = help_modal(area);
+    let layout = modal.render(
         frame,
         area,
-        Text::from(help_lines(theme, area.width.saturating_sub(4) as usize)),
+        Text::from(help_lines(theme, modal.layout(area).content.width as usize)),
         app.help_scroll.offset,
         false,
         theme,
@@ -820,6 +847,115 @@ pub(crate) fn help_scroll_max_for_page_size(page_size: usize, area: Rect) -> usi
 
 pub(crate) fn help_scrollbar_area(area: Rect, page_size: usize) -> Option<Rect> {
     help_modal(area).scrollbar_area(area, page_size)
+}
+
+pub(crate) fn section_titles() -> Vec<&'static str> {
+    LEFT_SECTIONS
+        .iter()
+        .chain(RIGHT_SECTIONS)
+        .map(|section| section.title)
+        .collect()
+}
+
+pub(crate) fn section_index(title: &str) -> usize {
+    section_titles()
+        .iter()
+        .position(|candidate| *candidate == title)
+        .unwrap_or(0)
+}
+
+pub(crate) fn section_offset(index: usize, area: Rect) -> usize {
+    let titles = section_titles();
+    let title = titles.get(index).copied().unwrap_or(titles[0]);
+    let theme = crate::ui::THEMES[0];
+    let width = help_modal(area).layout(area).content.width as usize;
+    help_lines(theme, width)
+        .iter()
+        .position(|line| {
+            let headers: String = line
+                .spans
+                .iter()
+                .filter(|span| {
+                    span.style.fg == Some(theme.accent)
+                        && span.style.add_modifier.contains(Modifier::BOLD)
+                })
+                .map(|span| span.content.as_ref())
+                .collect();
+            headers.contains(title)
+        })
+        .unwrap_or(0)
+}
+
+fn section_picker_modal() -> ScrollableModal {
+    ScrollableModal::new("HELP SECTIONS", 44, section_titles().len() as u16, 1)
+}
+
+fn section_picker_offset(area: Rect, selected: usize) -> usize {
+    let page = section_picker_modal().page_size(area);
+    selected.saturating_sub(page.saturating_sub(1))
+}
+
+pub(crate) fn section_picker_row_at(
+    area: Rect,
+    selected: usize,
+    x: u16,
+    y: u16,
+) -> Option<(usize, Rect)> {
+    let content = section_picker_modal().layout(area).content;
+    if !content.contains((x, y).into()) {
+        return None;
+    }
+    let index = section_picker_offset(area, selected) + usize::from(y - content.y);
+    (index < section_titles().len()).then_some((index, Rect::new(content.x, y, content.width, 1)))
+}
+
+pub(crate) fn section_picker_area(area: Rect) -> Rect {
+    section_picker_modal().layout(area).area
+}
+
+fn draw_section_picker(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+    let selected = app.help_section_picker.unwrap_or(app.help_section);
+    let hovered = app
+        .shortcut_hovered
+        .and_then(|row| section_picker_row_at(area, selected, row.x, row.y))
+        .map(|(index, _)| index);
+    let lines = section_titles()
+        .iter()
+        .enumerate()
+        .map(|(index, title)| {
+            let style = if index == selected || hovered == Some(index) {
+                Style::default()
+                    .fg(theme.text)
+                    .bg(theme.focus_surface)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.text)
+            };
+            Line::from(Span::styled(
+                format!("{} {title}", if index == selected { ">" } else { " " }),
+                style,
+            ))
+        })
+        .collect::<Vec<_>>();
+    let layout = section_picker_modal().render(
+        frame,
+        area,
+        Text::from(lines),
+        section_picker_offset(area, selected),
+        false,
+        theme,
+    );
+    let footer = Text::from(Line::from(shortcut_spans(
+        &[("↑/↓", "Select"), ("Enter", "Open"), ("Esc", "Back")],
+        theme,
+    )));
+    crate::ui::footer::register_shortcut_text(
+        app,
+        layout.footer,
+        &footer,
+        ratatui::layout::Alignment::Left,
+    );
+    frame.render_widget(Paragraph::new(footer), layout.footer);
 }
 
 #[derive(Clone)]

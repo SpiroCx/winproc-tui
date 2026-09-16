@@ -4,6 +4,7 @@ pub(crate) mod context_menu;
 pub(crate) mod export;
 pub(crate) mod feedback;
 pub(crate) mod file_users;
+pub(crate) mod help;
 pub(crate) mod log_format;
 pub(crate) mod logs;
 pub(crate) mod navigation;

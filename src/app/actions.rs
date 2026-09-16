@@ -60,18 +60,7 @@ impl App {
         }
 
         if self.show_help {
-            match key.code {
-                KeyCode::Esc | KeyCode::Enter | KeyCode::F(1) | KeyCode::Char('?') => {
-                    self.close_help();
-                }
-                KeyCode::Up => self.scroll_help_up(1),
-                KeyCode::Down => self.scroll_help_down(1),
-                KeyCode::PageUp => self.scroll_help_up(self.help_scroll.page_size),
-                KeyCode::PageDown => self.scroll_help_down(self.help_scroll.page_size),
-                KeyCode::Home => self.scroll_help_home(),
-                KeyCode::End => self.scroll_help_end(),
-                _ => {}
-            }
+            self.help_key(key);
             return Ok(());
         }
 
@@ -1497,6 +1486,10 @@ impl App {
             self.shortcut_map.borrow_mut().regions.clear();
         }
         if self.show_help {
+            if self.help_section_picker.is_some() {
+                self.help_section_mouse(mouse, screen_area);
+                return;
+            }
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
                     self.start_help_scrollbar_drag(mouse.column, mouse.row, screen_area);

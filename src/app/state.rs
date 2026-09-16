@@ -1171,6 +1171,8 @@ pub(crate) struct App {
     pub(crate) header_menu_hovered: bool,
     pub(crate) header_action_hovered: Option<crate::ui::header::HeaderAction>,
     pub(crate) show_help: bool,
+    pub(crate) help_section: usize,
+    pub(crate) help_section_picker: Option<usize>,
     pub(crate) help_scroll: ScrollableModalState,
     pub(crate) show_column_picker: bool,
     pub(crate) investigation_profiles_dialog:
@@ -1444,6 +1446,8 @@ impl App {
             header_menu_hovered: false,
             header_action_hovered: None,
             show_help: false,
+            help_section: 0,
+            help_section_picker: None,
             help_scroll: ScrollableModalState {
                 page_size: 1,
                 ..ScrollableModalState::default()
@@ -6848,15 +6852,20 @@ impl App {
     }
 
     pub(crate) fn open_help(&mut self) {
+        self.help_section = crate::ui::help::section_index(self.contextual_help_title());
         self.show_help = true;
-        self.help_scroll.reset();
+        self.help_section_picker = None;
+        self.jump_help_section(self.help_section);
     }
 
     pub(crate) fn close_help(&mut self) {
         self.show_help = false;
+        self.help_section_picker = None;
         self.help_scroll.reset();
-        self.ensure_visible_panel_focus();
-        self.status = "Help closed".to_string();
+        self.shortcut_hovered = None;
+        if !self.has_modal_focus() {
+            self.ensure_visible_panel_focus();
+        }
     }
 
     pub(crate) fn toggle_help(&mut self) {
