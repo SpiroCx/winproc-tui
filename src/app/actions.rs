@@ -1384,6 +1384,12 @@ impl App {
             {
                 self.toggle_display_pause();
             }
+            KeyCode::Char('b')
+                if key.modifiers == KeyModifiers::CONTROL
+                    && self.activity() == crate::app::AppActivity::LogView =>
+            {
+                self.exit_log_view();
+            }
             KeyCode::Char(ch)
                 if ch.eq_ignore_ascii_case(&'l')
                     && key.modifiers.contains(KeyModifiers::CONTROL)

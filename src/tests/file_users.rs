@@ -318,7 +318,11 @@ fn file_users_menu_is_live_only_and_does_not_start_a_scan() {
         .position(|row| app.main_menu_row_label(*row) == "Investigate ▸")
         .unwrap();
     press(&mut app, KeyCode::Right);
-    press(&mut app, KeyCode::Down);
+    app.main_menu_selected = app
+        .main_menu_rows()
+        .iter()
+        .position(|row| app.main_menu_row_label(*row) == "Find file users")
+        .unwrap();
     press(&mut app, KeyCode::Enter);
     assert!(app.file_users.visible);
     assert!(requests.try_recv().is_err());

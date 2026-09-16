@@ -96,3 +96,5 @@ Loaded histories are not pruned to Live-history capacities. Missing process or m
 - Stop and quit flush and close the writer; cleanup failure remains visible.
 - Partial logs remain available after interruption or failure.
 - Log view reconstructs histories but never plays frames over time.
+
+In Log view, the footer exposes a direct return to Live and explicit metric-to-Graph registration. Returning to Live is separate from quitting; Graph registration remains a user action.

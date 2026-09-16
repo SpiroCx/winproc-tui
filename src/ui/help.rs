@@ -69,6 +69,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Ctrl+B (Log view)",
+        label: "Return to Live; Space on a metric adds a Graph",
+    },
+    HelpItem {
         key: "Shift+T",
         label: "Toggle Tracked-only (any main panel)",
     },

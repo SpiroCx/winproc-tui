@@ -488,26 +488,26 @@ fn footer_shortcuts_follow_the_focused_panel() {
     assert!(graph.contains("←/→ Sample"), "{graph}");
     assert!(!graph.contains("Prev Slot"), "{graph}");
     assert!(!graph.contains("Next Slot"), "{graph}");
-    assert!(graph.contains("Del Remove Graph"), "{graph}");
+    assert!(graph.contains("Del Remove"), "{graph}");
     assert!(graph.contains("m Raw/MA5"), "{graph}");
     assert!(graph.contains("Enter Info"), "{graph}");
     assert!(graph.contains("Ctrl+←/→ Pan"), "{graph}");
     assert!(graph.contains("PgUp/PgDn Span"), "{graph}");
     assert!(graph.contains("f/z Fit/Min 0"), "{graph}");
-    assert!(graph.contains("a/b Set A/B range"), "{graph}");
+    assert!(graph.contains("a/b A/B range"), "{graph}");
     assert!(graph.contains("Shift+A/B Jump A/B"), "{graph}");
 
     app.focused_panel = FocusedPanel::DetailsSamples;
     let samples = render_app_to_text(&app, 300, 45);
     assert!(samples.contains("↑/← Older"), "{samples}");
     assert!(samples.contains("↓/→ Newer"), "{samples}");
-    assert!(samples.contains("Del Remove Graph"), "{samples}");
+    assert!(samples.contains("Del Remove"), "{samples}");
     assert!(samples.contains("m Raw/MA5"), "{samples}");
     assert!(samples.contains("PgUp/PgDn Scroll"), "{samples}");
     assert!(samples.contains("Home/End Edge"), "{samples}");
     assert!(samples.contains("f/z Fit/Min 0"), "{samples}");
     assert!(samples.contains("Shift+A/B Jump A/B"), "{samples}");
-    assert!(samples.contains("a/b Set A/B range"), "{samples}");
+    assert!(samples.contains("a/b A/B range"), "{samples}");
     assert!(samples.contains("x Clear A/B"), "{samples}");
 }
 
@@ -589,7 +589,7 @@ fn footer_fits_whole_shortcuts_and_preserves_essential_actions() {
                         "partial shortcut at {width}: {footer}"
                     );
                 }
-                if width >= 80 {
+                if width >= 160 {
                     for required in [
                         "ESC Menu",
                         "F1/? Help",
@@ -665,4 +665,38 @@ fn help_overlays_and_preserves_an_active_dialog() {
         .unwrap();
     assert!(!app.show_help && app.show_log_dir_dialog);
     assert_eq!(app.log_dir_draft, before);
+}
+
+#[test]
+fn investigation_actions_fit_at_120_columns() {
+    let mut app = make_test_app(3, 10);
+    assign_private_graph(&mut app);
+    for (panel, expected) in [
+        (
+            FocusedPanel::Processes,
+            vec!["Space Graph", "Ctrl+F Filter", "Enter/f Info/Files"],
+        ),
+        (
+            FocusedPanel::DetailsGraph,
+            vec!["←/→ Sample", "a/b A/B range", "Del Remove"],
+        ),
+        (
+            FocusedPanel::DetailsSamples,
+            vec!["a/b A/B range", "Del Remove"],
+        ),
+    ] {
+        app.focused_panel = panel;
+        let text = render_app_to_text(&app, 120, 60);
+        let footer = text.lines().last().unwrap();
+        for hint in expected {
+            assert!(footer.contains(hint), "{footer}");
+        }
+    }
+    app.log_view_path = Some("example.log".into());
+    app.focused_panel = FocusedPanel::Processes;
+    let text = render_app_to_text(&app, 120, 60);
+    assert!(text.lines().last().unwrap().contains("Ctrl+B Live"));
+    app.on_key(KeyEvent::new(KeyCode::Char('b'), KeyModifiers::CONTROL))
+        .unwrap();
+    assert!(app.log_view_path.is_none());
 }

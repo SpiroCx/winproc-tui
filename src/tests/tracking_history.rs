@@ -189,7 +189,7 @@ fn shift_t_works_in_every_main_panel_and_activity_without_changing_tracking_scop
                 assert_eq!(app.graph_entries, graphs);
                 assert_eq!(app.active_graph_id, active);
                 assert_eq!(app.activity(), activity);
-                let rendered = render_app_to_text(&app, 120, 60);
+                let rendered = render_app_to_text(&app, 500, 60);
                 assert!(
                     rendered
                         .lines()

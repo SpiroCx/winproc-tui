@@ -951,10 +951,13 @@ impl MainMenuSection {
             }
             (Self::View, AppActivity::Live | AppActivity::Recording) => LIVE_VIEW_MAIN_MENU_ACTIONS,
             (Self::View, AppActivity::LogView) => LOG_VIEW_VIEW_MAIN_MENU_ACTIONS,
-            (Self::Investigate, AppActivity::Live | AppActivity::Recording) => {
-                &[MainMenuAction::OpenNetwork, MainMenuAction::FindFileUsers]
-            }
-            (Self::Investigate, AppActivity::LogView) => &[],
+            (Self::Investigate, AppActivity::Live | AppActivity::Recording) => &[
+                MainMenuAction::ProcessInfo,
+                MainMenuAction::ProcessFiles,
+                MainMenuAction::OpenNetwork,
+                MainMenuAction::FindFileUsers,
+            ],
+            (Self::Investigate, AppActivity::LogView) => &[MainMenuAction::ProcessInfo],
             (Self::Log, AppActivity::Live) => LIVE_LOG_MAIN_MENU_ACTIONS,
             (Self::Log, AppActivity::LogView) => LOG_VIEW_LOG_MAIN_MENU_ACTIONS,
             (Self::Log, AppActivity::Recording) => &[],
@@ -965,6 +968,8 @@ impl MainMenuSection {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MainMenuAction {
+    ProcessInfo,
+    ProcessFiles,
     OpenNetwork,
     FindFileUsers,
     OpenProfiles,
@@ -986,6 +991,8 @@ pub(crate) enum MainMenuAction {
 impl MainMenuAction {
     pub(crate) const fn label(self) -> &'static str {
         match self {
+            Self::ProcessInfo => "Process Info",
+            Self::ProcessFiles => "Open Files",
             Self::OpenNetwork => "Network endpoints",
             Self::FindFileUsers => "Find file users",
             Self::OpenProfiles => "Open",
@@ -1043,6 +1050,7 @@ const LOG_VIEW_MAIN_MENU_ITEMS: &[MainMenuItem] = &[
     MainMenuItem::Section(MainMenuSection::Profile),
     MainMenuItem::Action(MainMenuAction::OpenColumns),
     MainMenuItem::Section(MainMenuSection::View),
+    MainMenuItem::Section(MainMenuSection::Investigate),
     MainMenuItem::Section(MainMenuSection::Log),
     MainMenuItem::Section(MainMenuSection::Config),
     MainMenuItem::Action(MainMenuAction::Help),
@@ -6666,6 +6674,8 @@ impl App {
 
         self.dismiss_main_menu();
         match action {
+            MainMenuAction::ProcessInfo => self.open_selected_process_info_dialog(),
+            MainMenuAction::ProcessFiles => self.open_selected_process_files(),
             MainMenuAction::FindFileUsers => {
                 self.open_file_users();
                 Ok(())

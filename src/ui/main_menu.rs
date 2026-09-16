@@ -6,11 +6,17 @@ use ratatui::{
 
 use crate::{
     App,
-    app::state::{MainMenuItem, MainMenuRow},
+    app::state::{MainMenuAction, MainMenuItem, MainMenuRow},
     ui::{Theme, widgets::scrollable_modal::ScrollableModal},
 };
 
 const HEADER_HEIGHT: u16 = 1;
+const MENU_KEYS: &[(&str, &str)] = &[
+    ("↑/↓", "Select"),
+    ("←/→", "Expand"),
+    ("Enter", "Open"),
+    ("Esc", "Close"),
+];
 
 pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
     let content_width = usize::from(main_menu_content_width(app));
@@ -38,12 +44,18 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
                 Style::default().fg(theme.text)
             };
             let indent = "  ".repeat(usize::from(row.depth));
-            let label = format!("{cursor}{indent}{}", app.main_menu_row_label(*row));
+            let label = format!("{cursor}{indent}{}", display_label(app, *row));
             Line::from(Span::styled(format!("{label:<content_width$}"), style))
         })
         .collect::<Vec<_>>();
 
-    main_menu_modal(app).render(frame, area, Text::from(lines), 0, false, theme);
+    let layout = main_menu_modal(app).render(frame, area, Text::from(lines), 0, false, theme);
+    frame.render_widget(
+        ratatui::widgets::Paragraph::new(Line::from(super::footer::shortcut_spans(
+            MENU_KEYS, theme,
+        ))),
+        layout.footer,
+    );
 }
 
 pub(crate) fn main_menu_index_at(area: Rect, app: &App, x: u16, y: u16) -> Option<usize> {
@@ -78,7 +90,7 @@ fn main_menu_modal(app: &App) -> ScrollableModal {
         "",
         main_menu_content_width(app),
         app.main_menu_rows().len().min(usize::from(u16::MAX)) as u16,
-        0,
+        1,
     )
     .with_top_left_placement(HEADER_HEIGHT)
 }
@@ -102,8 +114,47 @@ fn main_menu_content_width(app: &App) -> u16 {
                 depth: 1,
             }))
         })
-        .map(|row| 2 + usize::from(row.depth) * 2 + app.main_menu_row_label(row).chars().count())
+        .map(|row| 2 + usize::from(row.depth) * 2 + display_label(app, row).chars().count())
         .max()
         .unwrap_or_default()
+        .max(52)
         .min(usize::from(u16::MAX)) as u16
+}
+
+fn display_label(app: &App, row: MainMenuRow) -> String {
+    let mut label = app.main_menu_row_label(row);
+    let MainMenuItem::Action(action) = row.item else {
+        return label;
+    };
+    let key = match action {
+        MainMenuAction::ProcessInfo => "Enter (Processes)",
+        MainMenuAction::ProcessFiles => "f (Processes)",
+        MainMenuAction::OpenProfiles => "Ctrl+T",
+        MainMenuAction::SaveProfile => "Ctrl+S",
+        MainMenuAction::SaveProfileAs => "Ctrl+Shift+S",
+        MainMenuAction::OpenColumns => "c (Processes)",
+        MainMenuAction::ToggleTrackedOnly => "Shift+T",
+        MainMenuAction::ToggleTreeView => "v (Processes)",
+        MainMenuAction::StartRecording | MainMenuAction::StopRecording => "Ctrl+R",
+        MainMenuAction::ReturnToLive => "Ctrl+B",
+        MainMenuAction::OpenLog => "Ctrl+L",
+        MainMenuAction::Help => "F1",
+        MainMenuAction::QuitImmediately | MainMenuAction::QuitWithConfirmation => "q",
+        _ => "",
+    };
+    if matches!(
+        action,
+        MainMenuAction::ProcessInfo | MainMenuAction::ProcessFiles
+    ) {
+        if let Some(process) = app.selected_visible_process() {
+            let name: String = process.name.chars().take(24).collect();
+            label.push_str(&format!(" · PID {} {name}", process.pid));
+        } else {
+            label.push_str(" · no process selected");
+        }
+    }
+    if !key.is_empty() {
+        label.push_str(&format!("  {key}"));
+    }
+    label
 }

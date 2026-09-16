@@ -90,8 +90,8 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                 ("Shift+↑/↓", "Move"),
                 ("s", "Reorder"),
                 ("m", "Raw/MA5"),
-                ("Del", "Remove Graph"),
-                ("a/b", "Set A/B range"),
+                ("Del", "Remove"),
+                ("a/b", "A/B range"),
                 ("PgUp/PgDn", "Span"),
                 ("Ctrl+←/→", "Pan"),
                 ("Enter", "Info"),
@@ -106,8 +106,8 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                 ("Shift+↑/↓", "Move"),
                 ("s", "Reorder"),
                 ("m", "Raw/MA5"),
-                ("Del", "Remove Graph"),
-                ("a/b", "Set A/B range"),
+                ("Del", "Remove"),
+                ("a/b", "A/B range"),
                 ("PgUp/PgDn", "Scroll"),
                 ("Home/End", "Edge"),
                 ("f/z", "Fit/Min 0"),
@@ -138,7 +138,8 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         items.insert(0, ("Ctrl+R", "Stop"));
     }
     if app.activity() == AppActivity::LogView {
-        items.retain(|(key, _)| *key != "v" && *key != "e");
+        items.retain(|(key, _)| *key != "v" && *key != "e" && *key != "d");
+        items.insert(0, ("Ctrl+B", "Live"));
     } else {
         items.push((
             "Ctrl+P",
@@ -167,6 +168,12 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         app.is_display_paused().then_some("Ctrl+P"),
         Some("Tab"),
         primary_key,
+        Some("Ctrl+B"),
+        Some("Ctrl+F"),
+        Some("Enter/f"),
+        Some("←/→"),
+        Some("a/b"),
+        Some("Del"),
         Some("Ctrl+P"),
         Some("Shift+T"),
         Some("Ctrl+T"),

@@ -118,6 +118,7 @@ fn menu_uses_the_exact_activity_specific_item_sets() {
             "Profile ▸",
             "Columns",
             "View ▸",
+            "Investigate ▸",
             "Log ▸",
             "Config ▸",
             "Help",
@@ -447,9 +448,10 @@ fn menu_routes_activity_transitions_and_confirmations() {
 
     app.log_view_path = Some(PathBuf::from("C:/logs/example.log"));
     press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
+    app.main_menu_selected = menu_labels(&app)
+        .iter()
+        .position(|label| label == "Log ▸")
+        .unwrap();
     press(&mut app, KeyCode::Right);
     press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Enter);
@@ -496,19 +498,19 @@ fn existing_modal_and_editing_escape_handlers_do_not_open_menu() {
 }
 
 #[test]
-fn menu_is_compact_without_title_or_footer_guidance_and_keeps_hover_style() {
+fn menu_keeps_compact_navigation_guidance_and_hover_style() {
     let screen = Rect::new(0, 0, 80, 24);
     let mut app = make_test_app(1, 10);
     press(&mut app, KeyCode::Esc);
 
     let rendered = render_app_to_text(&app, screen.width, screen.height);
     assert!(rendered.contains("[MENU]"), "{rendered}");
-    assert!(!rendered.contains("↑/↓ Select"), "{rendered}");
+    assert!(rendered.contains("↑/↓ Select"), "{rendered}");
     assert!(!rendered.contains("Settings"), "{rendered}");
     let popup = main_menu_area(screen, &app);
     assert_eq!(popup.x, screen.x);
     assert_eq!(popup.y, screen.y.saturating_add(1));
-    assert_eq!(popup.height, app.main_menu_rows().len() as u16 + 2);
+    assert_eq!(popup.height, app.main_menu_rows().len() as u16 + 4);
     let collapsed_width = popup.width;
     let selected = main_menu_item_area(screen, &app, 0).expect("selected row");
     let title_row = Rect::new(popup.x, popup.y, popup.width, 1);

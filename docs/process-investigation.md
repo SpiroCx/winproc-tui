@@ -127,3 +127,5 @@ Passive tabs keep navigation on their content without creating a false focus sto
 ### Explicit filter editing
 
 Ctrl+F enters filter editing in Files, DLLs, Environment, and Network. Within the editor, arrows and Home/End move the text cursor, Backspace/Delete erase, Ctrl+U clears text, Enter applies, and Esc clears and leaves editing. Tab leaves editing and resumes control navigation. Outside explicit editing, list navigation and refresh retain their contextual meanings; direct typing remains available. The Processes filter and global Network editor use the same editing keys.
+
+The Investigate menu exposes Process Info and live Files for the cursor row and shows its PID and name. These routes use the same fixed-target opening actions as the Processes shortcuts.

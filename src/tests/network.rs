@@ -534,6 +534,11 @@ fn network_menu_opens_browser_and_late_owner_result_cannot_reopen_it() {
         .position(|row| app.main_menu_row_label(*row) == "Investigate ▸")
         .unwrap();
     press(&mut app, KeyCode::Right);
+    app.main_menu_selected = app
+        .main_menu_rows()
+        .iter()
+        .position(|row| app.main_menu_row_label(*row) == "Network endpoints")
+        .unwrap();
     press(&mut app, KeyCode::Enter);
     assert!(app.network_browser.visible);
     assert!(!app.is_main_menu_open());
@@ -557,7 +562,7 @@ fn network_menu_opens_browser_and_late_owner_result_cannot_reopen_it() {
     assert!(
         !app.main_menu_rows()
             .iter()
-            .any(|row| app.main_menu_row_label(*row).contains("Investigate"))
+            .any(|row| app.main_menu_row_label(*row).contains("Network endpoints"))
     );
 }
 
