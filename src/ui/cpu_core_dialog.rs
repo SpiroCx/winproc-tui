@@ -12,12 +12,14 @@ use crate::{
 };
 
 const FOOTER_ITEMS: [(&str, &str); 4] = [
-    ("↑/↓", "Scroll"),
+    ("↑/↓", "Rows"),
     ("PgUp/PgDn", "Page"),
     ("Home/End", "Edge"),
     ("Enter/Esc", "Close"),
 ];
 const FOOTER_HEIGHT: u16 = 1;
+const MAX_COLUMNS: usize = 4;
+const COLUMN_GAP: &str = "   ";
 
 pub(crate) fn draw_cpu_core_dialog(
     frame: &mut ratatui::Frame<'_>,
@@ -25,8 +27,8 @@ pub(crate) fn draw_cpu_core_dialog(
     app: &App,
     theme: Theme,
 ) {
-    let lines = cpu_core_dialog_lines(app, theme);
-    let modal = cpu_core_dialog_modal(app);
+    let (modal, columns) = cpu_core_dialog_grid(area, app);
+    let lines = cpu_core_dialog_lines(app, columns, theme);
     let layout = modal.render(
         frame,
         area,
@@ -44,11 +46,11 @@ pub(crate) fn draw_cpu_core_dialog(
 }
 
 pub(crate) fn cpu_core_dialog_page_size_for_screen(area: Rect, app: &App) -> usize {
-    cpu_core_dialog_modal(app).page_size(area)
+    cpu_core_dialog_grid(area, app).0.page_size(area)
 }
 
 pub(crate) fn cpu_core_dialog_content_area(area: Rect, app: &App) -> Rect {
-    cpu_core_dialog_modal(app).layout(area).content
+    cpu_core_dialog_grid(area, app).0.layout(area).content
 }
 
 pub(crate) fn cpu_core_dialog_scrollbar_area(
@@ -56,14 +58,16 @@ pub(crate) fn cpu_core_dialog_scrollbar_area(
     app: &App,
     page_size: usize,
 ) -> Option<Rect> {
-    cpu_core_dialog_modal(app).scrollbar_area(area, page_size)
+    cpu_core_dialog_grid(area, app)
+        .0
+        .scrollbar_area(area, page_size)
 }
 
-pub(crate) fn cpu_core_dialog_total_rows(app: &App) -> usize {
-    app.display_snapshot().cpu_logical_processors.len().max(1)
+pub(crate) fn cpu_core_dialog_total_rows(area: Rect, app: &App) -> usize {
+    cpu_core_dialog_grid(area, app).0.content_height as usize
 }
 
-fn cpu_core_dialog_lines(app: &App, theme: Theme) -> Vec<Line<'static>> {
+fn cpu_core_dialog_lines(app: &App, columns: usize, theme: Theme) -> Vec<Line<'static>> {
     let cores = &app.display_snapshot().cpu_logical_processors;
     if cores.is_empty() {
         let message = if app.activity() == AppActivity::LogView {
@@ -79,9 +83,19 @@ fn cpu_core_dialog_lines(app: &App, theme: Theme) -> Vec<Line<'static>> {
 
     let index_width = cores.len().saturating_sub(1).to_string().len().max(1);
     cores
-        .iter()
+        .chunks(columns)
         .enumerate()
-        .map(|(index, core)| cpu_core_line(index, index_width, *core, theme))
+        .map(|(row, cores)| {
+            let mut spans = Vec::new();
+            for (column, core) in cores.iter().enumerate() {
+                if column > 0 {
+                    spans.push(Span::raw(COLUMN_GAP));
+                }
+                spans
+                    .extend(cpu_core_line(row * columns + column, index_width, *core, theme).spans);
+            }
+            Line::from(spans)
+        })
         .collect()
 }
 
@@ -112,15 +126,23 @@ fn cpu_core_line(
     ])
 }
 
-fn cpu_core_dialog_modal(app: &App) -> ScrollableModal {
-    let content_height = cpu_core_dialog_total_rows(app).min(u16::MAX as usize) as u16;
-    let content_width = footer_width().max(39) as u16;
-    ScrollableModal::new(
+fn cpu_core_dialog_grid(area: Rect, app: &App) -> (ScrollableModal, usize) {
+    let core_count = app.display_snapshot().cpu_logical_processors.len();
+    let index_width = core_count.saturating_sub(1).to_string().len();
+    let cell_width = format!("CPU {:>index_width$} (-)  100%", 0).len();
+    let preferred_columns = core_count.clamp(1, MAX_COLUMNS);
+    let grid_width = preferred_columns * cell_width + (preferred_columns - 1) * COLUMN_GAP.len();
+    let mut modal = ScrollableModal::new(
         "PER-CORE CPU USAGE",
-        content_width,
-        content_height,
+        grid_width.max(footer_width()).max(39) as u16,
+        1,
         FOOTER_HEIGHT,
-    )
+    );
+    let available_width = modal.layout(area).content.width as usize;
+    let columns = ((available_width + COLUMN_GAP.len()) / (cell_width + COLUMN_GAP.len()))
+        .clamp(1, preferred_columns);
+    modal.content_height = core_count.div_ceil(columns).clamp(1, u16::MAX as usize) as u16;
+    (modal, columns)
 }
 
 fn footer_width() -> usize {

@@ -5168,7 +5168,7 @@ impl App {
     }
 
     pub(crate) fn set_cpu_core_page_size(&mut self, page_size: usize) {
-        let total = crate::ui::cpu_core_dialog_total_rows(self);
+        let total = crate::ui::cpu_core_dialog_total_rows(self.last_screen_area, self);
         self.cpu_core_scroll.set_page_size(page_size, total);
     }
 
@@ -5177,7 +5177,7 @@ impl App {
     }
 
     pub(crate) fn scroll_cpu_core_down(&mut self, amount: usize) {
-        let total = crate::ui::cpu_core_dialog_total_rows(self);
+        let total = crate::ui::cpu_core_dialog_total_rows(self.last_screen_area, self);
         self.cpu_core_scroll.scroll_down(amount, total);
     }
 
@@ -5186,7 +5186,7 @@ impl App {
     }
 
     pub(crate) fn scroll_cpu_core_end(&mut self) {
-        let total = crate::ui::cpu_core_dialog_total_rows(self);
+        let total = crate::ui::cpu_core_dialog_total_rows(self.last_screen_area, self);
         self.cpu_core_scroll.scroll_end(total);
     }
 

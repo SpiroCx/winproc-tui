@@ -6,7 +6,7 @@ use crate::app;
 use crate::app::{FocusedPanel, GraphSlot, GraphValueFormat};
 use crate::model::{CpuCoreKind, CpuLogicalProcessorSample, SystemMetric};
 use crate::ui;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 
@@ -105,7 +105,7 @@ fn cpu_per_core_control_hovers_and_opens_a_scrollable_dialog() {
     for (theme_index, theme) in ui::THEMES.iter().copied().enumerate() {
         let mut app = make_test_app(3, 10);
         app.theme_index = theme_index;
-        app.snapshot.cpu_logical_processors = (0..40)
+        app.snapshot.cpu_logical_processors = (0..128)
             .map(|index| CpuLogicalProcessorSample {
                 usage_percent: index as u8,
                 kind: Some(if index % 2 == 0 {
@@ -162,7 +162,7 @@ fn cpu_per_core_control_hovers_and_opens_a_scrollable_dialog() {
         assert!(app.cpu_core_scroll.offset > 0);
         let dialog = render_app_to_text(&app, screen.width, screen.height);
         assert!(dialog.contains("PER-CORE CPU USAGE"), "{dialog}");
-        assert!(dialog.contains("CPU 39 (E)"), "{dialog}");
+        assert!(dialog.contains("CPU 127 (E)"), "{dialog}");
         assert!(dialog.contains("Enter/Esc Close"), "{dialog}");
 
         app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
@@ -414,4 +414,134 @@ fn clicking_cpu_panel_moves_focus_to_cpu() {
 
     assert_eq!(app.focused_panel, FocusedPanel::Cpu);
     assert_eq!(app.status, "CPU row: CPU Usage");
+}
+
+#[test]
+fn cpu_per_core_grid_wraps_in_index_order_without_clipping() {
+    for count in [1, 3, 20, 21, 128] {
+        let screen = Rect::new(0, 0, 120, 60);
+        let mut app = make_test_app(3, 10);
+        app.snapshot.cpu_logical_processors = vec![
+            CpuLogicalProcessorSample {
+                usage_percent: 100,
+                kind: None,
+            };
+            count
+        ];
+        app.open_cpu_core_dialog();
+        app::sync_layout_state(&mut app, screen);
+        let buffer = render_app_to_buffer(&app, screen.width, screen.height);
+        let content = ui::cpu_core_dialog_content_area(screen, &app);
+        let columns = count.min(4);
+        assert_eq!(content.height as usize, count.div_ceil(columns));
+        assert!(
+            ui::cpu_core_dialog_scrollbar_area(screen, &app, app.cpu_core_scroll.page_size)
+                .is_none()
+        );
+        let index_width = (count - 1).to_string().len();
+        for index in 0..count {
+            let label = format!("CPU {index:>index_width$} (-)  100%");
+            let (x, y) = find_text_position_in_area(&buffer, content, &label).expect(&label);
+            assert_eq!(y, content.y + (index / columns) as u16);
+            assert_eq!(
+                x,
+                content.x + ((index % columns) * (label.len() + 3)) as u16
+            );
+        }
+        for x in content.x..content.right() {
+            assert_eq!(buffer[(x, content.bottom())].symbol(), " ");
+        }
+        assert!(buffer_to_text(&buffer).contains("↑/↓ Rows"));
+    }
+}
+
+#[test]
+fn cpu_per_core_grid_scrolls_by_rows_and_clamps_after_resize() {
+    let narrow = Rect::new(0, 0, 64, 20);
+    let wide = Rect::new(0, 0, 120, 60);
+    let mut app = make_test_app(3, 10);
+    app.snapshot.cpu_logical_processors = vec![
+        CpuLogicalProcessorSample {
+            usage_percent: 100,
+            kind: Some(CpuCoreKind::Performance),
+        };
+        128
+    ];
+    app.open_cpu_core_dialog();
+    app::sync_layout_state(&mut app, narrow);
+    let content = ui::cpu_core_dialog_content_area(narrow, &app);
+    let buffer = render_app_to_buffer(&app, narrow.width, narrow.height);
+    let (last_x, last_y) =
+        find_text_position_in_area(&buffer, content, "CPU   2 (P)  100%").unwrap();
+    assert_eq!(last_y, content.y);
+    assert!(last_x + 17 <= content.right());
+    assert_eq!(ui::cpu_core_dialog_total_rows(narrow, &app), 43);
+    app.on_mouse(
+        MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: content.x,
+            row: content.y,
+            modifiers: KeyModifiers::NONE,
+        },
+        narrow,
+    );
+    assert_eq!(app.cpu_core_scroll.offset, 1);
+    let buffer = render_app_to_buffer(&app, narrow.width, narrow.height);
+    assert_eq!(
+        find_text_position_in_area(&buffer, content, "CPU   3 (P)  100%")
+            .unwrap()
+            .1,
+        content.y
+    );
+    app.on_key(KeyEvent::new(KeyCode::End, KeyModifiers::NONE))
+        .unwrap();
+    assert_eq!(
+        app.cpu_core_scroll.offset,
+        43 - app.cpu_core_scroll.page_size
+    );
+    assert!(render_app_to_text(&app, narrow.width, narrow.height).contains("CPU 127 (P)  100%"));
+    app.on_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE))
+        .unwrap();
+    app.on_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE))
+        .unwrap();
+    assert_eq!(app.cpu_core_scroll.offset, app.cpu_core_scroll.page_size);
+    app.on_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE))
+        .unwrap();
+    assert_eq!(app.cpu_core_scroll.offset, 0);
+    let scrollbar =
+        ui::cpu_core_dialog_scrollbar_area(narrow, &app, app.cpu_core_scroll.page_size).unwrap();
+    app.on_mouse(left_click(scrollbar.x, scrollbar.bottom() - 1), narrow);
+    assert_eq!(
+        app.cpu_core_scroll.offset,
+        43 - app.cpu_core_scroll.page_size
+    );
+    app::sync_layout_state(&mut app, wide);
+    assert_eq!(app.cpu_core_scroll.offset, 0);
+    assert_eq!(app.cpu_core_scroll.page_size, 32);
+    assert!(
+        ui::cpu_core_dialog_scrollbar_area(wide, &app, app.cpu_core_scroll.page_size).is_none()
+    );
+    assert!(render_app_to_text(&app, wide.width, wide.height).contains("CPU 127 (P)  100%"));
+}
+
+#[test]
+fn cpu_per_core_grid_keeps_empty_and_log_view_messages() {
+    let screen = Rect::new(0, 0, 120, 60);
+    let mut app = make_test_app(3, 10);
+    app.snapshot.cpu_logical_processors.clear();
+    app.open_cpu_core_dialog();
+    for (log_path, message) in [
+        (None, "Per-core usage is unavailable."),
+        (
+            Some(std::path::PathBuf::from("test.jsonl")),
+            "Per-core usage is not recorded in logs.",
+        ),
+    ] {
+        app.log_view_path = log_path;
+        app::sync_layout_state(&mut app, screen);
+        let buffer = render_app_to_buffer(&app, screen.width, screen.height);
+        let content = ui::cpu_core_dialog_content_area(screen, &app);
+        assert_eq!(content.height, 1);
+        assert!(find_text_position_in_area(&buffer, content, message).is_some());
+    }
 }

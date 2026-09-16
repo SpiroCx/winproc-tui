@@ -369,7 +369,7 @@ const CPU_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Enter",
-        label: "Open selected Per-core usage",
+        label: "Open selected Per-core usage grid",
     },
 ];
 

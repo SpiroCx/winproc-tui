@@ -1827,13 +1827,13 @@ impl App {
                         .is_some_and(|area| contains_point(area, mouse.column, mouse.row)) =>
                 {
                     let area = scrollbar.expect("checked scrollbar");
-                    let total = crate::ui::cpu_core_dialog_total_rows(self);
+                    let total = crate::ui::cpu_core_dialog_total_rows(screen_area, self);
                     self.cpu_core_scroll.start_drag(area, mouse.row, total);
                     self.cpu_core_scroll.drag_to(area, mouse.row, total);
                 }
                 MouseEventKind::Drag(MouseButton::Left) if self.cpu_core_scroll.dragging => {
                     if let Some(area) = scrollbar {
-                        let total = crate::ui::cpu_core_dialog_total_rows(self);
+                        let total = crate::ui::cpu_core_dialog_total_rows(screen_area, self);
                         self.cpu_core_scroll.drag_to(area, mouse.row, total);
                     }
                 }
