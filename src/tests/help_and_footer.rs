@@ -719,3 +719,32 @@ fn graph_history_state_and_end_hint_follow_manual_selection() {
     app.toggle_display_pause();
     assert!(render_app_to_text(&app, 120, 60).contains("Paused · Latest"));
 }
+
+#[test]
+fn compact_resource_tabs_share_drawing_and_click_targets() {
+    use crate::app::ResourcePanel;
+    let mut app = make_test_app(2, 10);
+    let screen = Rect::new(0, 0, 120, 60);
+    for (label, expected) in [
+        ("[GPU]", ResourcePanel::Gpu),
+        ("[MEM]", ResourcePanel::Memory),
+    ] {
+        let buffer = render_app_to_buffer(&app, 120, 60);
+        let (x, y) = find_text_position(&buffer, label).unwrap();
+        assert_eq!(ui::resource_switch_at(screen, &app, x, y), Some(expected));
+        app.on_mouse(
+            MouseEvent {
+                kind: MouseEventKind::Down(MouseButton::Left),
+                column: x,
+                row: y,
+                modifiers: KeyModifiers::NONE,
+            },
+            screen,
+        );
+        assert_eq!(app.resource_panel, expected);
+        assert_eq!(app.focused_panel, FocusedPanel::System);
+    }
+    let wide = render_app_to_text(&app, 300, 60);
+    assert!(!wide.contains("[MEM]"));
+    assert!(wide.contains("GPU"));
+}

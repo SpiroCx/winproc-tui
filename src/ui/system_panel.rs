@@ -83,6 +83,42 @@ pub(crate) fn draw_system_panel(
         .style(Style::default().bg(theme.panel));
     frame.render_widget(right, activity_inner);
 
+    if let Some(controls) = resource_switch_areas(panels) {
+        for (rect, resource, label) in [
+            (controls[0], ResourcePanel::Memory, "[MEM]"),
+            (controls[1], ResourcePanel::Gpu, "[GPU]"),
+        ] {
+            let style = if app.resource_panel_hovered == Some(resource) {
+                Style::default()
+                    .fg(theme.text)
+                    .bg(theme.focus_surface)
+                    .add_modifier(Modifier::BOLD)
+            } else if app.resource_panel == resource {
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.key_hint)
+            };
+            frame.render_widget(Paragraph::new(label).style(style), rect);
+        }
+        let hint = if app.resource_panel == ResourcePanel::Gpu {
+            let (page, count) = app.gpu_adapter_page();
+            format!("Tab · {page}/{count}")
+        } else {
+            "Tab".to_string()
+        };
+        let panel = if panels[0].width > 0 {
+            panels[0]
+        } else {
+            panels[1]
+        };
+        let hint_x = controls[1].right() + 1;
+        frame.render_widget(
+            Paragraph::new(hint).style(Style::default().fg(theme.key_hint)),
+            Rect::new(hint_x, panel.y, panel.right().saturating_sub(hint_x + 1), 1),
+        );
+    }
     draw_cpu_panel(frame, panels[3], app, theme);
 }
 
@@ -928,4 +964,30 @@ pub(crate) fn optional_value_color(value: Option<u64>, theme: Theme) -> ratatui:
         Some(_) => theme.text,
         None => theme.muted,
     }
+}
+
+fn resource_switch_areas(panels: [Rect; 4]) -> Option<[Rect; 2]> {
+    if panels[0].width > 0 && panels[1].width > 0 {
+        return None;
+    }
+    let panel = if panels[0].width > 0 {
+        panels[0]
+    } else {
+        panels[1]
+    };
+    (panel.width >= 18 && panel.height > 0).then(|| {
+        [
+            Rect::new(panel.x + 1, panel.y, 5, 1),
+            Rect::new(panel.x + 7, panel.y, 5, 1),
+        ]
+    })
+}
+
+pub(crate) fn resource_switch_at(screen: Rect, app: &App, x: u16, y: u16) -> Option<ResourcePanel> {
+    let controls =
+        resource_switch_areas(top_panel_areas(system_panel_area_for_screen(screen), app))?;
+    [ResourcePanel::Memory, ResourcePanel::Gpu]
+        .into_iter()
+        .zip(controls)
+        .find_map(|(resource, rect)| rect.contains((x, y).into()).then_some(resource))
 }
