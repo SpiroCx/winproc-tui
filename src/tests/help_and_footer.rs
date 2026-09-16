@@ -506,7 +506,7 @@ fn footer_shortcuts_follow_the_focused_panel() {
     assert!(graph.contains("Del Remove"), "{graph}");
     assert!(graph.contains("m Raw/MA5"), "{graph}");
     assert!(graph.contains("Enter Info"), "{graph}");
-    assert!(graph.contains("Ctrl+←/→ Pan"), "{graph}");
+    assert!(graph.contains("Alt+←/→ Pan"), "{graph}");
     assert!(graph.contains("PgUp/PgDn Span"), "{graph}");
     assert!(graph.contains("f/z Fit/Min 0"), "{graph}");
     assert!(graph.contains("a/b A/B range"), "{graph}");

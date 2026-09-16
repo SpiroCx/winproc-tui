@@ -88,6 +88,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                     },
                 ),
                 ("Ctrl+C", "Copy row"),
+                ("Alt+↑/↓", "Cursor"),
                 ("Ctrl+F", "Filter"),
             ]
         }
@@ -101,7 +102,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                 ("Del", "Remove"),
                 ("a/b", "A/B range"),
                 ("PgUp/PgDn", "Span"),
-                ("Ctrl+←/→", "Pan"),
+                ("Alt+←/→", "Pan"),
                 ("Enter", "Info"),
                 ("f/z", "Fit/Min 0"),
                 ("Shift+A/B", "Jump A/B"),
@@ -170,6 +171,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
     items.push(("F12", "Color"));
     items.push(("F1/?", "Help"));
     items.push(("Tab", "Focus"));
+    items.push(("Ctrl+↑↓←→", "Panel"));
 
     let mut prioritized = Vec::new();
     for key in [
@@ -178,6 +180,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         Some("Ctrl+R"),
         app.is_display_paused().then_some("Ctrl+P"),
         Some("Tab"),
+        Some("Ctrl+↑↓←→"),
         primary_key,
         Some("Ctrl+A"),
         Some("Ctrl+B"),
@@ -188,6 +191,8 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         Some("a/b"),
         Some("Del"),
         Some("Ctrl+P"),
+        Some("i"),
+        Some("g"),
         Some("Shift+T"),
         Some("Ctrl+T"),
     ]

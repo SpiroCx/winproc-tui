@@ -206,9 +206,9 @@ fn process_ctrl_space_toggles_discontiguous_live_rows() {
 
     app.on_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL))
         .unwrap();
-    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::ALT))
         .unwrap();
-    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::ALT))
         .unwrap();
     app.on_key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL))
         .unwrap();
@@ -1462,7 +1462,7 @@ fn multi_selection_markers_survive_cursor_movement_and_are_pruned_by_filter() {
         .unwrap();
     let selected = app.selected_process_identities.clone();
     assert_eq!(selected.len(), 2);
-    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::ALT))
         .unwrap();
     let rendered = super::support::render_app_to_text(&app, 120, 60);
     assert!(rendered.contains("2 selected (*)"), "{rendered}");

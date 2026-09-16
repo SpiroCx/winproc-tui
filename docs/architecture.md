@@ -140,6 +140,8 @@ The collection boundary deliberately produces one aggregate `Snapshot`. Explicit
 
 ## 6. UI Boundary
 
+Directional main-screen focus follows effective panel rectangles, skips hidden panels, and stops at screen edges. Neighbors sharing the travel axis take priority, followed by edge distance and center alignment. Tab cycling remains available. Changing workspace focus preserves the active Graph and all panel selections.
+
 Modal input has priority over underlying panels, and non-modal actions depend on the current focus state. Text editing and confirmation flows consume their own input instead of falling through to screen navigation.
 
 `MENU` is top-level modal navigation, not a fourth user-visible activity. An otherwise-unhandled main-screen `Esc` or the leftmost mouse-accessible header control opens it in Live, Recording, or Log view, while existing dialogs and text-editing flows retain input priority. Its activity-specific hierarchy expands parents inline, permits multiple parents to remain expanded, omits unavailable actions, and exposes persistent startup behavior through Config. Menu actions reuse the same application transitions as their direct shortcuts and revalidate the activity that opened the menu before activation. Checkbox actions toggle in place without closing the menu. Sampling, freshness tracking, histories, and Recording continue while it is visible; Recording failures and automatic activity transitions dismiss it before presenting the higher-priority state.

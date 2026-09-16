@@ -473,7 +473,7 @@ fn process_table_multi_selection_shares_cursor_surface_and_keeps_cursor_cell_dis
 
         for cursor_index in [1, 2] {
             if cursor_index == 2 {
-                app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+                app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::ALT))
                     .unwrap();
             }
             let buffer = render_app_to_buffer(&app, 100, 30);

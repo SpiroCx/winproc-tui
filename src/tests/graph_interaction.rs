@@ -446,11 +446,11 @@ fn graph_focus_keys_zoom_pan_and_select_samples() {
         .unwrap();
     assert_eq!(app.details_sample_selected, 2);
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 8);
 
-    app.on_key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Right, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 0);
 
@@ -775,27 +775,27 @@ fn graph_pan_skips_empty_time_ranges() {
         &app.normalized_watch_names,
     );
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 120);
 
-    app.on_key(KeyEvent::new(KeyCode::Right, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Right, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 0);
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 120);
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 128);
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 136);
 
-    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+    app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::ALT))
         .unwrap();
     assert_eq!(app.graph_time_offset_seconds, 144);
 }
@@ -1829,4 +1829,93 @@ fn samples_inspector_uses_right_bottom_and_temporary_collapse_placements() {
     app::sync_layout_state(&mut app, wide);
     assert!(!app.show_samples_panel);
     assert!(!app.effective_show_samples_panel());
+}
+
+#[test]
+fn ctrl_arrows_follow_visible_panels_without_mutating_content() {
+    let mut app = make_test_app(30, 10);
+    let first = add_test_graph(&mut app, 0);
+    add_test_graph(&mut app, 1);
+    app.select_graph(first);
+    let selected = app.process_table_state.selected();
+    let offset = app.graph_time_offset_seconds;
+    for screen in [
+        Rect::new(0, 0, 180, 60),
+        Rect::new(0, 0, 90, 60),
+        Rect::new(0, 0, 180, 60),
+    ] {
+        for show_samples in [true, false] {
+            app.show_samples_panel = show_samples;
+            app.focused_panel = FocusedPanel::Processes;
+            app::sync_layout_state(&mut app, screen);
+            app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+                .unwrap();
+            assert_eq!(app.focused_panel, FocusedPanel::DetailsGraph);
+            let details = ui::main_panel_areas_for_app(screen, &app).details.unwrap();
+            let layout = ui::layout::graph_workspace_layout(details, &app);
+            if let Some(samples) = layout.samples {
+                let key = if samples.x >= layout.graph_slots.right() {
+                    KeyCode::Right
+                } else {
+                    KeyCode::Down
+                };
+                app.on_key(KeyEvent::new(key, KeyModifiers::CONTROL))
+                    .unwrap();
+                assert_eq!(app.focused_panel, FocusedPanel::DetailsSamples);
+                let back = if key == KeyCode::Right {
+                    KeyCode::Left
+                } else {
+                    KeyCode::Up
+                };
+                app.on_key(KeyEvent::new(back, KeyModifiers::CONTROL))
+                    .unwrap();
+                assert_eq!(app.focused_panel, FocusedPanel::DetailsGraph);
+            }
+            app.on_key(KeyEvent::new(KeyCode::Left, KeyModifiers::CONTROL))
+                .unwrap();
+            assert_eq!(app.focused_panel, FocusedPanel::DetailsGraph);
+            app.on_key(KeyEvent::new(KeyCode::Up, KeyModifiers::CONTROL))
+                .unwrap();
+            assert_eq!(app.focused_panel, FocusedPanel::Processes);
+            assert_eq!(app.active_graph_id, Some(first));
+            assert_eq!(app.process_table_state.selected(), selected);
+            assert_eq!(app.graph_time_offset_seconds, offset);
+        }
+    }
+    app.show_details = false;
+    app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 60));
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+        .unwrap();
+    assert_eq!(app.focused_panel, FocusedPanel::Processes);
+    app.focused_panel = FocusedPanel::System;
+    app.select_resource_panel(app::ResourcePanel::Memory);
+    for (key, panel, resource) in [
+        (
+            KeyCode::Left,
+            FocusedPanel::System,
+            app::ResourcePanel::Memory,
+        ),
+        (
+            KeyCode::Right,
+            FocusedPanel::System,
+            app::ResourcePanel::Gpu,
+        ),
+        (
+            KeyCode::Right,
+            FocusedPanel::SystemActivity,
+            app::ResourcePanel::Gpu,
+        ),
+        (KeyCode::Right, FocusedPanel::Cpu, app::ResourcePanel::Gpu),
+        (KeyCode::Up, FocusedPanel::Cpu, app::ResourcePanel::Gpu),
+        (
+            KeyCode::Down,
+            FocusedPanel::Processes,
+            app::ResourcePanel::Gpu,
+        ),
+    ] {
+        app.on_key(KeyEvent::new(key, KeyModifiers::CONTROL))
+            .unwrap();
+        assert_eq!(app.focused_panel, panel);
+        assert_eq!(app.resource_panel, resource);
+    }
 }

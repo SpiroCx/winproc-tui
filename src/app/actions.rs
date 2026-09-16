@@ -802,6 +802,16 @@ impl App {
             return Ok(());
         }
 
+        if key.modifiers == KeyModifiers::CONTROL
+            && matches!(
+                key.code,
+                KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down
+            )
+        {
+            self.focus_panel_in_direction(key.code);
+            return Ok(());
+        }
+
         if is_ctrl_s(key) {
             self.save_active_investigation_profile();
             return Ok(());
@@ -975,7 +985,7 @@ impl App {
                     return Ok(());
                 }
                 KeyCode::Left => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    if key.modifiers == KeyModifiers::ALT {
                         self.shift_graph_time_window(true);
                     } else {
                         self.select_details_sample_older(1);
@@ -983,7 +993,7 @@ impl App {
                     return Ok(());
                 }
                 KeyCode::Right => {
-                    if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    if key.modifiers == KeyModifiers::ALT {
                         self.shift_graph_time_window(false);
                     } else {
                         self.select_details_sample_newer(1);
@@ -1178,10 +1188,7 @@ impl App {
                     && !key.modifiers.contains(KeyModifiers::ALT)
                 {
                     self.extend_process_selection_up(1);
-                } else if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(KeyModifiers::SHIFT)
-                    && !key.modifiers.contains(KeyModifiers::ALT)
-                {
+                } else if key.modifiers == KeyModifiers::ALT {
                     self.move_selection_cursor_up(1);
                 } else {
                     self.move_selection_up(1);
@@ -1193,10 +1200,7 @@ impl App {
                     && !key.modifiers.contains(KeyModifiers::ALT)
                 {
                     self.extend_process_selection_down(1);
-                } else if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && !key.modifiers.contains(KeyModifiers::SHIFT)
-                    && !key.modifiers.contains(KeyModifiers::ALT)
-                {
+                } else if key.modifiers == KeyModifiers::ALT {
                     self.move_selection_cursor_down(1);
                 } else {
                     self.move_selection_down(1);

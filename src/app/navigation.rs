@@ -1,6 +1,71 @@
-use crate::app::App;
+use crossterm::event::KeyCode;
+use ratatui::layout::Rect;
+
+use crate::{
+    app::{App, FocusedPanel, ResourcePanel},
+    ui,
+};
 
 impl App {
+    pub(crate) fn focus_panel_in_direction(&mut self, direction: KeyCode) {
+        let screen = self.last_screen_area;
+        let mut regions = vec![
+            (
+                FocusedPanel::System,
+                Some(ResourcePanel::Memory),
+                ui::ram_vram_panel_area_for_screen(screen, self),
+            ),
+            (
+                FocusedPanel::System,
+                Some(ResourcePanel::Gpu),
+                ui::gpu_panel_area_for_screen(screen, self),
+            ),
+            (
+                FocusedPanel::SystemActivity,
+                None,
+                ui::system_activity_panel_area_for_screen(screen, self),
+            ),
+            (
+                FocusedPanel::Cpu,
+                None,
+                ui::cpu_panel_area_for_screen(screen, self),
+            ),
+            (
+                FocusedPanel::Processes,
+                None,
+                ui::main_panel_areas_for_app(screen, self).processes.area,
+            ),
+        ];
+        if let Some(area) = ui::main_panel_areas_for_app(screen, self).details {
+            let layout = ui::layout::graph_workspace_layout(area, self);
+            regions.push((FocusedPanel::DetailsGraph, None, layout.graph_slots));
+            if let Some(samples) = layout.samples {
+                regions.push((FocusedPanel::DetailsSamples, None, samples));
+            }
+        }
+        regions.retain(|(_, _, area)| area.width > 0 && area.height > 0);
+        let Some((_, _, current)) = regions.iter().find(|(panel, resource, _)| {
+            *panel == self.focused_panel
+                && resource.is_none_or(|value| value == self.resource_panel)
+        }) else {
+            return;
+        };
+        let target = regions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, (panel, resource, area))| {
+                directional_neighbor_score(*current, *area, direction)
+                    .map(|score| (score, index, *panel, *resource))
+            })
+            .min_by_key(|(score, index, _, _)| (*score, *index));
+        if let Some((_, _, panel, resource)) = target {
+            self.focused_panel = panel;
+            if let Some(resource) = resource {
+                self.select_resource_panel(resource);
+            }
+        }
+    }
+
     pub(crate) fn move_selection_up(&mut self, amount: usize) {
         self.move_selection_up_with_mode(amount, SelectionMoveMode::Single);
     }
@@ -220,4 +285,38 @@ enum SelectionMoveMode {
     Single,
     CursorOnly,
     Extend,
+}
+
+// Prefer a panel sharing the travel axis, then the nearest edge and center.
+// No candidate means the focus stays at the visible edge; navigation never wraps.
+fn directional_neighbor_score(from: Rect, to: Rect, key: KeyCode) -> Option<(bool, u16, u16)> {
+    if from == to {
+        return None;
+    }
+    let (gap, a_start, a_end, b_start, b_end) = match key {
+        KeyCode::Left if to.right() <= from.x => (
+            from.x - to.right(),
+            from.y,
+            from.bottom(),
+            to.y,
+            to.bottom(),
+        ),
+        KeyCode::Right if to.x >= from.right() => (
+            to.x - from.right(),
+            from.y,
+            from.bottom(),
+            to.y,
+            to.bottom(),
+        ),
+        KeyCode::Up if to.bottom() <= from.y => {
+            (from.y - to.bottom(), from.x, from.right(), to.x, to.right())
+        }
+        KeyCode::Down if to.y >= from.bottom() => {
+            (to.y - from.bottom(), from.x, from.right(), to.x, to.right())
+        }
+        _ => return None,
+    };
+    let separate = a_end <= b_start || b_end <= a_start;
+    let distance = (a_start + (a_end - a_start) / 2).abs_diff(b_start + (b_end - b_start) / 2);
+    Some((separate, gap, distance))
 }

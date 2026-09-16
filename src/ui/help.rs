@@ -69,6 +69,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Ctrl+↑/↓/←/→",
+        label: "Focus neighboring visible panel (no wrap)",
+    },
+    HelpItem {
         key: "Ctrl+B (Log view)",
         label: "Return to Live; Space on a metric adds a Graph",
     },
@@ -172,7 +176,7 @@ const PROCESSES_ROWS: &[HelpItem] = &[
         label: "Select row range",
     },
     HelpItem {
-        key: "Ctrl+↑/↓",
+        key: "Alt+↑/↓",
         label: "Move cursor only",
     },
     HelpItem {
@@ -446,7 +450,7 @@ const GRAPH_ROWS: &[HelpItem] = &[
         label: "Open Process Info",
     },
     HelpItem {
-        key: "Ctrl+←/→",
+        key: "Alt+←/→",
         label: "Pan time range",
     },
     HelpItem {
