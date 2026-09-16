@@ -156,7 +156,11 @@ fn open_files_lines(app: &App, theme: Theme, width: usize) -> Vec<Line<'static>>
     };
     lines.push(Line::from(Span::styled(
         format!(
-            "{}  handles {}  file handles {}  {}{}",
+            "Live result {} · {}  handles {}  file handles {}  {}{}",
+            app.open_files_refresh
+                .received_at
+                .map(|time| time.format("%H:%M:%S").to_string())
+                .unwrap_or_else(|| "--".to_string()),
             app.open_files_refresh_label(),
             report.total_handles,
             report.file_handles,

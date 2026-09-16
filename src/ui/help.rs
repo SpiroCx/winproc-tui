@@ -453,6 +453,10 @@ const GRAPH_ROWS: &[HelpItem] = &[
 
 const SAMPLES_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "History / Follow latest",
+        label: "Local sample state; End returns to the latest sample",
+    },
+    HelpItem {
         key: "Shift+↑/↓",
         label: "Move active Graph",
     },

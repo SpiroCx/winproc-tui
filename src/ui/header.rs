@@ -45,7 +45,7 @@ pub(crate) fn draw_header(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App,
             {
                 append_recording_interval(&mut spans, interval_seconds, theme);
             }
-            if !app.is_display_paused() {
+            {
                 spans.push(Span::raw(" "));
                 spans.push(Span::styled(
                     SPINNER[app.recording_spinner_index % SPINNER.len()].to_string(),

@@ -428,7 +428,11 @@ fn draw_active_samples_inspector(
         title,
         theme,
         app.panel_has_focus(FocusedPanel::DetailsSamples),
-    );
+    )
+    .title_bottom(Line::from(Span::styled(
+        app.sample_follow_label(),
+        Style::default().fg(theme.muted),
+    )));
     let inner = block.inner(area);
     frame.render_widget(block, area);
     if samples.is_empty() {

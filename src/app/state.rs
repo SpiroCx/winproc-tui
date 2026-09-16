@@ -3796,6 +3796,18 @@ impl App {
         self.status = "Samples selection: oldest".to_string();
     }
 
+    pub(crate) fn sample_follow_label(&self) -> &'static str {
+        if !self.details_live {
+            "History · End Latest"
+        } else if self.activity() == AppActivity::LogView {
+            "Recorded · Latest"
+        } else if self.is_display_paused() {
+            "Paused · Latest"
+        } else {
+            "Follow latest"
+        }
+    }
+
     pub(crate) fn select_details_sample_latest(&mut self) {
         self.details_sample_selected = self.selected_sample_count().saturating_sub(1);
         self.scroll_details_samples_to_latest();
@@ -4876,14 +4888,21 @@ impl App {
     pub(crate) fn process_info_metrics_view(&self) -> Option<ProcessInfoMetricsView> {
         let target = self.process_info_target.as_ref()?;
         let current_at = self.display_snapshot().captured_at;
+        let current_label = if self.activity() == AppActivity::LogView {
+            "Recorded"
+        } else if self.is_display_paused() {
+            "Paused"
+        } else {
+            "Current"
+        };
         let history = self.display_process_history();
         let comparison = self.ab_comparison.as_ref();
         let point_a = comparison.and_then(|comparison| comparison.a);
         let point_b = comparison.and_then(|comparison| comparison.b);
         let (value_at, value_heading, delta_heading) = match (point_a, point_b) {
             (Some(_), Some(point_b)) => (point_b.captured_at, "At B", Some("B-A")),
-            (Some(_), None) => (current_at, "Current", Some("Delta from A")),
-            _ => (current_at, "Current", None),
+            (Some(_), None) => (current_at, current_label, Some("Delta from A")),
+            _ => (current_at, current_label, None),
         };
         let value_sample = history.sample_at(&target.identity, value_at);
         let baseline_sample =
@@ -4895,11 +4914,11 @@ impl App {
                 format_process_info_time(point_b.captured_at)
             ),
             (Some(point_a), None) => format!(
-                "A {} -> Current {}",
+                "A {} -> {current_label} {}",
                 format_process_info_time(point_a.captured_at),
                 format_process_info_time(current_at)
             ),
-            _ => format!("Current {}", format_process_info_time(current_at)),
+            _ => format!("{current_label} {}", format_process_info_time(current_at)),
         };
         let rows = PROCESS_INFO_METRIC_COLUMNS
             .into_iter()

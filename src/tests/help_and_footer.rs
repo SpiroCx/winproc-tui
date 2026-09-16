@@ -706,3 +706,16 @@ fn investigation_actions_fit_at_120_columns() {
         .unwrap();
     assert!(app.log_view_path.is_none());
 }
+
+#[test]
+fn graph_history_state_and_end_hint_follow_manual_selection() {
+    let mut app = make_test_app(3, 10);
+    assign_private_graph(&mut app);
+    app.select_details_sample_oldest();
+    let rendered = render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("History · End Latest"));
+    app.select_details_sample_latest();
+    assert!(render_app_to_text(&app, 120, 60).contains("Follow latest"));
+    app.toggle_display_pause();
+    assert!(render_app_to_text(&app, 120, 60).contains("Paused · Latest"));
+}

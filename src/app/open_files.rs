@@ -9,6 +9,7 @@ use crate::ui::open_files;
 #[derive(Default)]
 pub(crate) struct OpenFilesRefresh {
     pub(crate) next_due: Option<Instant>,
+    pub(crate) received_at: Option<chrono::DateTime<chrono::Local>>,
     pub(crate) interval: Option<Duration>,
     pub(crate) elapsed: Option<Duration>,
     pub(crate) automatic: bool,
@@ -17,6 +18,7 @@ pub(crate) struct OpenFilesRefresh {
 impl OpenFilesRefresh {
     pub(crate) fn completed(&mut self, elapsed: Duration, success: bool, now: Instant) {
         self.elapsed = Some(elapsed);
+        self.received_at = Some(chrono::Local::now());
         // Leave at least ten times the collection cost idle. Expensive or failed collections
         // require a manual retry; a successful, inexpensive retry resumes automatic refresh.
         self.interval = (success && elapsed <= Duration::from_secs(1)).then(|| {

@@ -98,3 +98,5 @@ Loaded histories are not pruned to Live-history capacities. Missing process or m
 - Log view reconstructs histories but never plays frames over time.
 
 In Log view, the footer exposes a direct return to Live and explicit metric-to-Graph registration. Returning to Live is separate from quitting; Graph registration remains a user action.
+
+The Recording progress indicator remains visible and advances while the display is paused, independently of the frozen process snapshot.

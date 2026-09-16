@@ -88,3 +88,5 @@ Drawing and mouse hit testing consume one `GraphWorkspaceLayout` result for shar
 - Multi-column Graphs and the active Samples inspector can coexist when their minimum sizes fit.
 
 Process Graph and Samples captions retain the target PID when names must be shortened. Exact B-A values occupy a separate caption so target labels cannot truncate their digits. Layout controls distinguish effective column count from a constrained explicit preference.
+
+Graph and Samples show their local history/follow state independently of the activity header. Manual history inspection offers a return to the latest sample; paused and recorded latest samples are labeled by their source.

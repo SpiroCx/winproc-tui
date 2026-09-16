@@ -923,6 +923,9 @@ fn recording_header_shows_rec_spinner_and_path() {
     app.toggle_display_pause();
     let paused = render_app_to_text(&app, 120, 45);
     let paused_header = paused.lines().next().expect("paused header row");
+    app.recording_spinner_index += 1;
+    let advanced = render_app_to_text(&app, 120, 45);
+    assert_ne!(paused_header, advanced.lines().next().unwrap());
     assert!(paused.contains("REC"), "{paused}");
     assert!(paused.contains("DISPLAY PAUSED"), "{paused}");
     assert!(

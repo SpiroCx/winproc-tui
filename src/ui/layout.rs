@@ -320,8 +320,9 @@ pub(crate) fn graph_workspace_title_label(app: &App) -> String {
     let count = app.graph_entries.len();
     let slot_label = if count == 1 { "Slot" } else { "Slots" };
     format!(
-        "GRAPHS · {count} {slot_label} · Span {}s",
-        app.effective_graph_time_span_seconds()
+        "GRAPHS · {count} {slot_label} · Span {}s · {}",
+        app.effective_graph_time_span_seconds(),
+        app.sample_follow_label()
     )
 }
 
