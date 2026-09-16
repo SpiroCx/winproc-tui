@@ -44,8 +44,12 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
                 Style::default().fg(theme.text)
             };
             let indent = "  ".repeat(usize::from(row.depth));
-            let label = format!("{cursor}{indent}{}", display_label(app, *row));
-            Line::from(Span::styled(format!("{label:<content_width$}"), style))
+            let mut line = display_label(app, *row, theme);
+            line.spans.insert(0, Span::raw(format!("{cursor}{indent}")));
+            line.spans.push(Span::raw(
+                " ".repeat(content_width.saturating_sub(line.width())),
+            ));
+            line.style(style)
         })
         .collect::<Vec<_>>();
 
@@ -114,17 +118,17 @@ fn main_menu_content_width(app: &App) -> u16 {
                 depth: 1,
             }))
         })
-        .map(|row| 2 + usize::from(row.depth) * 2 + display_label(app, row).chars().count())
+        .map(|row| 2 + usize::from(row.depth) * 2 + display_label(app, row, app.theme()).width())
         .max()
         .unwrap_or_default()
         .max(52)
         .min(usize::from(u16::MAX)) as u16
 }
 
-fn display_label(app: &App, row: MainMenuRow) -> String {
+fn display_label(app: &App, row: MainMenuRow, theme: Theme) -> Line<'static> {
     let mut label = app.main_menu_row_label(row);
     let MainMenuItem::Action(action) = row.item else {
-        return label;
+        return Line::from(label);
     };
     let key = match action {
         MainMenuAction::ProcessInfo => "Enter (Processes)",
@@ -153,8 +157,14 @@ fn display_label(app: &App, row: MainMenuRow) -> String {
             label.push_str(" · no process selected");
         }
     }
+    let mut spans = vec![Span::raw(label)];
     if !key.is_empty() {
-        label.push_str(&format!("  {key}"));
+        let (key, context) = key.split_once(' ').unwrap_or((key, ""));
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(key, Style::default().fg(theme.key_hint)));
+        if !context.is_empty() {
+            spans.push(Span::raw(format!(" {context}")));
+        }
     }
-    label
+    Line::from(spans)
 }

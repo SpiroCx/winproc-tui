@@ -536,11 +536,56 @@ fn menu_keeps_compact_navigation_guidance_and_hover_style() {
                 "theme={theme_index}, x={x}"
             );
         }
+        for (label, key) in [
+            ("Columns", "c"),
+            ("Start Recording", "Ctrl+R"),
+            ("Help", "F1"),
+            ("Quit", "q"),
+        ] {
+            let index = menu_labels(&app)
+                .iter()
+                .position(|item| item == label)
+                .expect("shortcut row");
+            for (selected_index, hovered_index, background, bold) in [
+                (0, None, theme.panel_alt, false),
+                (index, None, theme.table_selection_surface, true),
+                (0, Some(index), theme.focus_surface, true),
+            ] {
+                app.main_menu_selected = selected_index;
+                app.main_menu_hovered = hovered_index;
+                let buffer = render_app_to_buffer(&app, screen.width, screen.height);
+                let row = main_menu_item_area(screen, &app, index).expect("shortcut row area");
+                let key_x = row.x + 2 + label.len() as u16 + 2;
+                for x in row.x..row.right() {
+                    let cell = &buffer[(x, row.y)];
+                    let expected_color = if (key_x..key_x + key.len() as u16).contains(&x) {
+                        theme.key_hint
+                    } else {
+                        theme.text
+                    };
+                    assert_eq!(
+                        cell.fg, expected_color,
+                        "theme={theme_index}, {label}, x={x}"
+                    );
+                    assert_eq!(cell.bg, background, "theme={theme_index}, {label}, x={x}");
+                    assert_eq!(cell.modifier.contains(Modifier::BOLD), bold);
+                }
+            }
+        }
+        app.main_menu_selected = 0;
+        app.main_menu_hovered = None;
     }
 
     app.theme_index = 0;
     press(&mut app, KeyCode::Right);
     assert_eq!(main_menu_area(screen, &app).width, collapsed_width);
+    let expanded_buffer = render_app_to_buffer(&app, screen.width, screen.height);
+    let (key_x, key_y) = find_text_position(&expanded_buffer, "Ctrl+T").expect("Profile shortcut");
+    assert_eq!(expanded_buffer[(key_x, key_y)].fg, app.theme().key_hint);
+    assert_eq!(
+        expanded_buffer[(key_x, key_y)].bg,
+        app.theme().table_selection_surface
+    );
     press(&mut app, KeyCode::Left);
     let large_screen = Rect::new(0, 0, 100, 45);
     let large_popup = main_menu_area(large_screen, &app);
