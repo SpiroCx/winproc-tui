@@ -1631,7 +1631,7 @@ fn graph_layout_shortcuts_preserve_explicit_samples_preference() {
     assert!(app.show_samples_panel);
     let rendered = render_app_to_text(&app, 120, 60);
     assert!(rendered.contains("☑  v: Samples"), "{rendered}");
-    assert!(rendered.contains("l: 2 cols"), "{rendered}");
+    assert!(rendered.contains("l: 1/2 cols"), "{rendered}");
 
     app.on_key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))
         .unwrap();
@@ -1639,7 +1639,7 @@ fn graph_layout_shortcuts_preserve_explicit_samples_preference() {
     assert_eq!(app.graph_slot_layout, GraphSlotLayout::ThreeColumns);
     assert!(app.show_samples_panel);
     let rendered = render_app_to_text(&app, 180, 60);
-    assert!(rendered.contains("l: 3 cols"), "{rendered}");
+    assert!(rendered.contains("l: 2/3 cols"), "{rendered}");
 
     app.on_key(KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE))
         .unwrap();

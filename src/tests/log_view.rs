@@ -658,7 +658,7 @@ fn loaded_log_feeds_graph_samples_without_turning_missing_values_to_zero() {
 
     let rendered = render_app_to_text(&app, 120, 45);
     assert!(
-        rendered.contains("Slot#1 · PrivBytes · app.exe"),
+        rendered.contains("Slot#1 · PrivBytes · PID 1 app.exe"),
         "{rendered}"
     );
     assert!(rendered.contains("A/B Time      PrivBytes"), "{rendered}");

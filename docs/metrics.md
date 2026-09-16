@@ -622,3 +622,5 @@ Missing values are displayed as `--` in the UI and are not treated as 0 in Graph
 - [`GetLogicalProcessorInformationEx`](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformationex)
 - [.NET runtime metrics](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/built-in-metrics-runtime)
 - [Well-known .NET EventCounters](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/available-counters)
+
+Exact byte values in Graph comparison captions and Samples have explicit `B` or `B/s` unit context. Compact axis units do not change those exact values or raw clipboard/recording formats.

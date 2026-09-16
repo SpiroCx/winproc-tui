@@ -660,9 +660,11 @@ impl GraphSlot {
         }
     }
 
-    pub(crate) fn graph_title_target_label(&self) -> Option<&str> {
+    pub(crate) fn graph_title_target_label(&self) -> Option<String> {
         match self {
-            Self::Process { identity, .. } => Some(&identity.name),
+            Self::Process { identity, .. } => {
+                Some(format!("PID {} {}", identity.pid, identity.name))
+            }
             Self::System { .. } | Self::Gpu { .. } => None,
         }
     }

@@ -83,7 +83,7 @@ pub(crate) fn draw_details_panel(
     }
 
     let layout = graph_workspace_layout(area, app);
-    draw_graph_shared_controls(frame, layout.controls, app, theme);
+    draw_graph_shared_controls(frame, layout.controls, app, layout.columns, theme);
     let graph_focused = app.panel_has_focus(FocusedPanel::DetailsGraph);
     frame.render_widget(
         graph_workspace_block(
@@ -286,7 +286,32 @@ fn render_graph_card(
     compact: bool,
 ) {
     let active = app.active_graph_id == Some(card.id);
-    let block = graph_card_block(title, theme, active);
+    // Comparison values get their own border row so a long target cannot clip digits.
+    let mut title = title;
+    let mut comparison = title.spans.split_off(title.spans.len().saturating_sub(2));
+    if let Some(first) = comparison.first_mut() {
+        first.content = "B-A: ".into();
+    }
+    comparison.push(Span::raw(exact_unit_suffix(data.metric)));
+    let available = card.display_mode.x.saturating_sub(card.title.x) as usize;
+    if title.width() > available
+        && let Some(entry) = app.graph_entry_by_id(card.id)
+        && let Some(identity) = entry.source.process_identity()
+    {
+        title = Line::from(Span::styled(
+            fit_graph_label(
+                &format!(
+                    "Slot#{} · PID {} · {}",
+                    card.ordinal + 1,
+                    identity.pid,
+                    entry.source.graph_title_metric_label()
+                ),
+                available,
+            ),
+            Style::default().fg(if active { theme.text } else { theme.muted }),
+        ));
+    }
+    let block = graph_card_block(title, theme, active).title_bottom(Line::from(comparison));
     let inner = block.inner(card.area);
     frame.render_widget(block, card.area);
 
@@ -458,16 +483,29 @@ fn samples_inspector_title(
     ];
 
     if let Some(identity) = slot.process_identity() {
-        let full_title = Line::from(format!("SAMPLES · {slot_label} · {}", identity.name));
+        let target = format!("PID {} {}", identity.pid, identity.name);
+        let full_title = Line::from(format!("SAMPLES · {slot_label} · {target}"));
         let available_width = usize::from(area_width.saturating_sub(2));
         if full_title.width() + crate::ui::widgets::block::PANEL_NAME_PADDING_WIDTH
             <= available_width
         {
             spans.push(Span::styled(" · ", Style::default().fg(theme.muted)));
-            spans.push(Span::styled(
-                identity.name.clone(),
-                Style::default().fg(theme.text),
-            ));
+            spans.push(Span::styled(target, Style::default().fg(theme.text)));
+        } else {
+            let compact = format!("SAMPLES · {slot_label} · PID {}", identity.pid);
+            if Line::from(compact).width() + crate::ui::widgets::block::PANEL_NAME_PADDING_WIDTH
+                <= available_width
+            {
+                spans.push(Span::styled(
+                    format!(" · PID {}", identity.pid),
+                    Style::default().fg(theme.text),
+                ));
+            } else {
+                return Line::from(Span::styled(
+                    format!("SAMPLES · PID {}", identity.pid),
+                    Style::default().fg(theme.text),
+                ));
+            }
         }
     }
 
@@ -499,6 +537,8 @@ fn draw_samples_subpanel(
     frame_times: Option<&[DateTime<Local>]>,
 ) -> SampleViewport {
     let inner = area;
+    let unit = exact_unit_suffix(metric);
+    let metric_label = format!("{metric_label}{unit}");
     let metric_header_style = Style::default()
         .fg(theme.accent)
         .add_modifier(Modifier::BOLD);
@@ -511,7 +551,7 @@ fn draw_samples_subpanel(
         ),
         if show_delta {
             Span::styled(
-                format!("{:>SAMPLE_DELTA_WIDTH$}", "Delta"),
+                format!("{:>SAMPLE_DELTA_WIDTH$}", format!("Delta{unit}")),
                 Style::default().fg(theme.muted),
             )
         } else {
@@ -923,7 +963,13 @@ fn draw_graph_content(
     frame.render_widget(x_axis, layout[2]);
 }
 
-fn draw_graph_shared_controls(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+fn draw_graph_shared_controls(
+    frame: &mut ratatui::Frame<'_>,
+    area: Rect,
+    app: &App,
+    effective: usize,
+    theme: Theme,
+) {
     let controls = graph_shared_control_areas(area, app.show_samples_panel);
     render_graph_toggle(
         frame,
@@ -941,7 +987,15 @@ fn draw_graph_shared_controls(frame: &mut ratatui::Frame<'_>, area: Rect, app: &
         "Delta",
         theme,
     );
-    render_graph_layout_mode(frame, controls.layout, app.graph_slot_layout.label(), theme);
+    let requested = app.graph_slot_layout.columns() as usize;
+    let label = if requested > 0 && requested != effective {
+        format!("{effective}/{requested} cols")
+    } else if requested == 0 {
+        format!("Auto ({effective})")
+    } else {
+        app.graph_slot_layout.label().to_string()
+    };
+    render_graph_layout_mode(frame, controls.layout, &label, theme);
     render_graph_toggle(
         frame,
         controls.all_samples,
@@ -2340,6 +2394,29 @@ fn graph_guide_bottom_value(y_min: f64, y_max: f64, plot_height: u16) -> f64 {
     (y_min + one_cell).min(y_max)
 }
 
+fn exact_unit_suffix(metric: GraphValueFormat) -> &'static str {
+    match metric {
+        GraphValueFormat::Bytes => " B",
+        GraphValueFormat::BytesPerSec => " B/s",
+        _ => "",
+    }
+}
+
+fn fit_graph_label(label: &str, width: usize) -> String {
+    if Line::from(label).width() <= width {
+        return label.to_string();
+    }
+    let mut result = String::new();
+    for ch in label.chars() {
+        if Line::from(format!("{result}{ch}…")).width() > width {
+            break;
+        }
+        result.push(ch);
+    }
+    result.push('…');
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3555,7 +3632,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("");
 
-        assert_eq!(rendered, "Slot#1 · PrivBytes · app.exe · B-A: --");
+        assert_eq!(rendered, "Slot#1 · PrivBytes · PID 42 app.exe · B-A: --");
         assert!(
             line.spans[0].style.fg == Some(crate::ui::THEMES[0].active_series)
                 && line.spans[0].style.add_modifier.contains(Modifier::BOLD)
@@ -3598,8 +3675,8 @@ mod tests {
                 .join("")
         };
 
-        assert_eq!(rendered(&wide), "SAMPLES · Slot#2 · app.exe");
-        assert_eq!(rendered(&narrow), "SAMPLES · Slot#2");
+        assert_eq!(rendered(&wide), "SAMPLES · Slot#2 · PID 42");
+        assert_eq!(rendered(&narrow), "SAMPLES · PID 42");
         assert_eq!(wide.spans[2].style.fg, Some(theme.active_series));
         assert!(wide.spans[2].style.add_modifier.contains(Modifier::BOLD));
     }
@@ -3656,7 +3733,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("");
 
-        assert_eq!(rendered, "Slot#1 · Hndl · DeepL.exe · B-A: +2");
+        assert_eq!(rendered, "Slot#1 · Hndl · PID 42 DeepL.exe · B-A: +2");
     }
 
     #[test]

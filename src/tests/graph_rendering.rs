@@ -961,7 +961,7 @@ fn graph_shared_samples_and_layout_checkboxes_work_with_mouse() {
     assert!(!app.show_samples_panel);
 
     let (layout_x, layout_y) =
-        find_text_position(&two_columns, "l: 2 cols").expect("layout control should render");
+        find_text_position(&two_columns, "l: 1/2 cols").expect("layout control should render");
     app.on_mouse(left_click(layout_x, layout_y), screen);
     assert_eq!(app.graph_slot_layout, GraphSlotLayout::ThreeColumns);
 }
@@ -1006,7 +1006,7 @@ fn graph_shared_controls_follow_footer_shortcut_color_roles_in_all_color_schemes
         assert_eq!(buffer[(checked_x + 6, checked_y)].fg, theme.text);
 
         let (layout_x, layout_y) =
-            find_text_position(&buffer, "l: 3 cols").expect("layout option should render");
+            find_text_position(&buffer, "l: 1/3 cols").expect("layout option should render");
         assert_eq!(buffer[(layout_x, layout_y)].fg, theme.key_hint);
         assert_eq!(buffer[(layout_x + 1, layout_y)].fg, theme.muted);
         assert_eq!(buffer[(layout_x + 3, layout_y)].fg, theme.text);
@@ -1755,7 +1755,7 @@ fn details_rendering_shows_workspace_title_and_active_samples() {
     );
     assert!(!rendered.contains("Slot#1/"), "{rendered}");
     assert!(
-        rendered.contains("Slot#1 · PrivBytes · proc-0 · B-A: --"),
+        rendered.contains("Slot#1 · PrivBytes · PID 0 proc-0"),
         "{rendered}"
     );
     assert!(rendered.contains("SAMPLES  · Slot#1"), "{rendered}");
@@ -1788,10 +1788,13 @@ fn multi_graph_rendering_uses_one_shared_samples_inspector() {
     let rendered = render_app_to_text(&app, 140, 80);
 
     assert!(
-        rendered.contains("Slot#1 · PrivBytes · proc-0"),
+        rendered.contains("Slot#1 · PrivBytes · PID 0 proc-0"),
         "{rendered}"
     );
-    assert!(rendered.contains("Slot#2 · WS · proc-0"), "{rendered}");
+    assert!(
+        rendered.contains("Slot#2 · WS · PID 0 proc-0"),
+        "{rendered}"
+    );
     assert_eq!(rendered.matches("B-A: --").count(), 2, "{rendered}");
     assert_eq!(rendered.matches("f: Fit all").count(), 1, "{rendered}");
     assert_eq!(rendered.matches("z: Min 0").count(), 1, "{rendered}");
@@ -1799,7 +1802,7 @@ fn multi_graph_rendering_uses_one_shared_samples_inspector() {
     assert_eq!(rendered.matches("d: Delta").count(), 1, "{rendered}");
     assert_eq!(rendered.matches("l: Auto").count(), 1, "{rendered}");
     assert_eq!(
-        rendered.matches("SAMPLES  · Slot#2 · proc-0").count(),
+        rendered.matches("SAMPLES  · Slot#2 · PID 0 proc-0").count(),
         1,
         "{rendered}"
     );
@@ -1920,4 +1923,46 @@ fn two_column_graphs_share_compact_y_axis_width() {
             .len(),
         2
     );
+}
+
+#[test]
+fn narrow_graphs_keep_same_name_pids_and_complete_byte_deltas() {
+    let mut app = make_test_app(3, 10);
+    for process in &mut app.snapshot.processes {
+        process.name = "a-very-long-shared-process-name.exe".to_string();
+        process.private_bytes = Some(100);
+    }
+    let a = app.snapshot.captured_at;
+    app.process_history
+        .record_snapshot(a, &app.snapshot.processes, &app.normalized_watch_names);
+    for process in &mut app.snapshot.processes {
+        process.private_bytes = Some(3_321_956);
+    }
+    let b = a + chrono::Duration::seconds(1);
+    app.process_history
+        .record_snapshot(b, &app.snapshot.processes, &app.normalized_watch_names);
+    let identities: Vec<_> = app
+        .snapshot
+        .processes
+        .iter()
+        .map(ProcessIdentity::from_row)
+        .collect();
+    for identity in identities {
+        app.add_or_reveal_graph_source(
+            GraphSlot::process(identity, DetailsMetric::Private),
+            FocusedPanel::Processes,
+        );
+    }
+    app.ab_comparison = Some(crate::app::AbComparison {
+        a: Some(crate::app::AbComparisonPoint { captured_at: a }),
+        b: Some(crate::app::AbComparisonPoint { captured_at: b }),
+    });
+    app.graph_slot_layout = GraphSlotLayout::ThreeColumns;
+    app.show_samples_panel = false;
+    let text = render_app_to_text(&app, 120, 60);
+    for pid in 0..3 {
+        assert!(text.contains(&format!("PID {pid}")), "{text}");
+    }
+    assert_eq!(text.matches("B-A: +3,321,856 B").count(), 3, "{text}");
+    assert!(text.contains("l: 2/3 cols"), "{text}");
 }

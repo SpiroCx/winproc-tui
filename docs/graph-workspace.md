@@ -86,3 +86,5 @@ Drawing and mouse hit testing consume one `GraphWorkspaceLayout` result for shar
 - Shared time state never substitutes another series' nearby sample.
 - Drawing and hit testing use the same computed geometry.
 - Multi-column Graphs and the active Samples inspector can coexist when their minimum sizes fit.
+
+Process Graph and Samples captions retain the target PID when names must be shortened. Exact B-A values occupy a separate caption so target labels cannot truncate their digits. Layout controls distinguish effective column count from a constrained explicit preference.
