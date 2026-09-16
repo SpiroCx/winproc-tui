@@ -94,3 +94,5 @@ Graph and Samples show their local history/follow state independently of the act
 When MEM and GPU share the available resource-panel space, visible tabs expose both resources. Keyboard focus cycling and direct tab clicks retain the existing resource metric selection and Graph action semantics.
 
 Directional panel navigation treats GRAPHS as one workspace and Samples as a separate visible panel. Entering or leaving GRAPHS preserves its active card; card selection and shared-time panning remain independent operations.
+
+The complete GRAPHS frame indicates workspace keyboard focus using the same focus treatment as other main panels. Inner card frames identify the active Graph independently. Samples stays outside that frame. Card, plot, control, and scrollbar geometry reserves the workspace border cells and is shared by drawing and mouse input.

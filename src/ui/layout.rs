@@ -327,7 +327,7 @@ pub(crate) fn graph_workspace_title_label(app: &App) -> String {
 }
 
 fn graph_span_control_areas(area: Rect, app: &App) -> GraphSpanControlAreas {
-    const TITLE_INSET: u16 = 0;
+    const TITLE_INSET: u16 = 1;
     const TITLE_BUTTON_GAP: u16 = 2;
     const BUTTON_WIDTH: u16 = 3;
     const BETWEEN_BUTTONS: u16 = 1;
@@ -345,7 +345,7 @@ fn graph_span_control_areas(area: Rect, app: &App) -> GraphSpanControlAreas {
     let zoom_in_x = zoom_out_x
         .saturating_add(BUTTON_WIDTH)
         .saturating_add(BETWEEN_BUTTONS);
-    if zoom_in_x.saturating_add(BUTTON_WIDTH) > area.right() {
+    if zoom_in_x.saturating_add(BUTTON_WIDTH) > area.right().saturating_sub(1) {
         return GraphSpanControlAreas::default();
     }
     GraphSpanControlAreas {

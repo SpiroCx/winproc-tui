@@ -45,7 +45,7 @@ fn panel_focus_and_active_graph_use_distinct_frames_in_all_color_schemes() {
                 layout.graph_slots.y
             )]
                 .symbol(),
-            "━"
+            "┓"
         );
         assert_eq!(
             graph_focused[(
@@ -57,7 +57,7 @@ fn panel_focus_and_active_graph_use_distinct_frames_in_all_color_schemes() {
         );
         assert_eq!(
             graph_focused[(layout.graph_slots.x, layout.graph_slots.y + 1)].symbol(),
-            " "
+            "┃"
         );
         assert_eq!(
             graph_focused[(
@@ -65,7 +65,7 @@ fn panel_focus_and_active_graph_use_distinct_frames_in_all_color_schemes() {
                 layout.graph_slots.bottom().saturating_sub(1)
             )]
                 .symbol(),
-            " "
+            "┗"
         );
         assert_eq!(graph_focused[(card.x, card.y)].symbol(), "╭");
         assert_eq!(graph_focused[(card.x, card.y)].fg, theme.active_series);
@@ -85,7 +85,7 @@ fn panel_focus_and_active_graph_use_distinct_frames_in_all_color_schemes() {
                 layout.graph_slots.y
             )]
                 .symbol(),
-            "─"
+            "╮"
         );
         assert_eq!(
             samples_focused[(
@@ -116,7 +116,7 @@ fn panel_focus_and_active_graph_use_distinct_frames_in_all_color_schemes() {
                 layout.graph_slots.y
             )]
                 .symbol(),
-            "─"
+            "╮"
         );
         assert_eq!(processes_focused[(card.x, card.y)].symbol(), "╭");
         assert_eq!(processes_focused[(card.x, card.y)].fg, theme.active_series);
@@ -233,10 +233,6 @@ fn exactly_one_top_level_panel_uses_high_contrast_focus_chrome() {
         assign_private_graph(&mut app);
         app.show_samples_panel = true;
         app::sync_layout_state(&mut app, screen);
-        let details = main_panel_areas_for_app(screen, &app)
-            .details
-            .expect("Graph Workspace should render");
-        let graph_layout = ui::layout::graph_workspace_layout(details, &app);
 
         for focused_panel in [
             FocusedPanel::System,
@@ -253,16 +249,7 @@ fn exactly_one_top_level_panel_uses_high_contrast_focus_chrome() {
                 .iter()
                 .filter(|cell| cell.symbol() == "┏" && cell.fg == app.theme().focus_border)
                 .count();
-            let graph_has_focused_top_rule =
-                (graph_layout.graph_slots.x..graph_layout.graph_slots.right()).any(|x| {
-                    let cell = &buffer[(x, graph_layout.graph_slots.y)];
-                    cell.symbol() == "━" && cell.fg == app.theme().focus_border
-                });
-            assert_eq!(
-                focused_top_left_corners + usize::from(graph_has_focused_top_rule),
-                1,
-                "theme={theme_index}, focus={focused_panel:?}"
-            );
+            assert_eq!(focused_top_left_corners, 1, "one panel owns focus");
         }
     }
 }
@@ -2006,6 +1993,53 @@ fn graph_cursor_units_and_summary_scopes_remain_clear_at_review_size() {
                 assert!(text.contains("History max:"), "{text}");
                 assert!(text.contains("Selected MA5:"), "{text}");
                 assert_eq!(text.contains("A-B max:"), ab, "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn graph_workspace_border_stays_outside_cards_samples_and_scrollbar() {
+    for screen in [Rect::new(0, 0, 180, 60), Rect::new(0, 0, 75, 60)] {
+        for count in [1, 8] {
+            for show_samples in [true, false] {
+                let mut app = make_test_app(30, 10);
+                for index in 0..count {
+                    add_test_graph(&mut app, index);
+                }
+                app.graph_slot_layout = GraphSlotLayout::OneColumn;
+                app.show_samples_panel = show_samples;
+                app.focused_panel = FocusedPanel::DetailsGraph;
+                app::sync_layout_state(&mut app, screen);
+                let layout = ui::layout::graph_workspace_layout(
+                    main_panel_areas_for_app(screen, &app).details.unwrap(),
+                    &app,
+                );
+                let rect = layout.graph_slots;
+                let buffer = render_app_to_buffer(&app, screen.width, screen.height);
+                for (x, y, symbol) in [
+                    (rect.x, rect.y, "┏"),
+                    (rect.right() - 1, rect.y, "┓"),
+                    (rect.x, rect.bottom() - 1, "┗"),
+                    (rect.right() - 1, rect.bottom() - 1, "┛"),
+                ] {
+                    assert_eq!(buffer[(x, y)].symbol(), symbol);
+                    assert_eq!(buffer[(x, y)].fg, app.theme().focus_border);
+                }
+                for card in &layout.graph_cards {
+                    assert!(card.area.x > rect.x && card.area.right() < rect.right());
+                    assert!(card.area.y > rect.y && card.area.bottom() < rect.bottom());
+                    app.focused_panel = FocusedPanel::Processes;
+                    app.on_mouse(left_click(card.title.x, card.title.y), screen);
+                    assert_eq!(app.active_graph_id, Some(card.id));
+                    assert_eq!(app.focused_panel, FocusedPanel::DetailsGraph);
+                }
+                if let Some(samples) = layout.samples {
+                    assert!(!rect.intersects(samples));
+                }
+                if let Some(scrollbar) = layout.graph_scrollbar {
+                    assert!(scrollbar.right() < rect.right());
+                }
             }
         }
     }

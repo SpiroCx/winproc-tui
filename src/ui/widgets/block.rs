@@ -95,20 +95,7 @@ pub(crate) fn graph_workspace_block<'a>(
     theme: Theme,
     focused: bool,
 ) -> Block<'a> {
-    Block::default()
-        .title(reversed_panel_name(title.into(), theme, focused))
-        .borders(Borders::TOP)
-        .border_type(if focused {
-            BorderType::Thick
-        } else {
-            BorderType::Plain
-        })
-        .border_style(Style::default().fg(if focused {
-            theme.focus_border
-        } else {
-            theme.border
-        }))
-        .style(Style::default().bg(theme.panel))
+    panel_block_focused(title, theme, focused)
 }
 
 pub(crate) fn graph_card_block<'a>(
@@ -163,29 +150,29 @@ mod tests {
     }
 
     #[test]
-    fn graph_workspace_uses_only_a_thick_focused_top_rule() {
+    fn graph_workspace_uses_a_complete_thick_focus_border() {
         let theme = crate::ui::THEMES[0];
         let area = Rect::new(0, 0, 8, 3);
         let mut buffer = Buffer::empty(area);
         graph_workspace_block("", theme, true).render(area, &mut buffer);
 
-        assert_eq!(buffer[(0, 0)].symbol(), "━");
+        assert_eq!(buffer[(0, 0)].symbol(), "┏");
         assert_eq!(buffer[(0, 0)].fg, theme.focus_border);
-        assert_eq!(buffer[(0, 1)].symbol(), " ");
-        assert_eq!(buffer[(0, 2)].symbol(), " ");
+        assert_eq!(buffer[(0, 1)].symbol(), "┃");
+        assert_eq!(buffer[(0, 2)].symbol(), "┗");
     }
 
     #[test]
-    fn inactive_graph_workspace_uses_a_thin_muted_top_rule() {
+    fn inactive_graph_workspace_uses_a_complete_muted_border() {
         let theme = crate::ui::THEMES[0];
         let area = Rect::new(0, 0, 8, 3);
         let mut buffer = Buffer::empty(area);
         graph_workspace_block("", theme, false).render(area, &mut buffer);
 
-        assert_eq!(buffer[(0, 0)].symbol(), "─");
+        assert_eq!(buffer[(0, 0)].symbol(), "╭");
         assert_eq!(buffer[(0, 0)].fg, theme.border);
-        assert_eq!(buffer[(0, 1)].symbol(), " ");
-        assert_eq!(buffer[(0, 2)].symbol(), " ");
+        assert_eq!(buffer[(0, 1)].symbol(), "│");
+        assert_eq!(buffer[(0, 2)].symbol(), "╰");
     }
 
     #[test]
@@ -229,13 +216,13 @@ mod tests {
                     Span::styled(" [-]", Style::default().fg(theme.key_hint)),
                 ]);
                 graph_workspace_block(title, theme, focused).render(area, &mut buffer);
-                assert_eq!(buffer[(0, 0)].fg, theme.panel);
-                assert_eq!(buffer[(0, 0)].bg, name_bg);
-                assert_eq!(buffer[(0, 0)].symbol(), " ");
-                assert_eq!(buffer[(7, 0)].symbol(), " ");
-                assert_eq!(buffer[(7, 0)].bg, name_bg);
-                assert_eq!(buffer[(9, 0)].bg, theme.panel);
-                assert_eq!(buffer[(19, 0)].fg, theme.key_hint);
+                assert_eq!(buffer[(1, 0)].fg, theme.panel);
+                assert_eq!(buffer[(1, 0)].bg, name_bg);
+                assert_eq!(buffer[(1, 0)].symbol(), " ");
+                assert_eq!(buffer[(8, 0)].symbol(), " ");
+                assert_eq!(buffer[(8, 0)].bg, name_bg);
+                assert_eq!(buffer[(10, 0)].bg, theme.panel);
+                assert_eq!(buffer[(20, 0)].fg, theme.key_hint);
             }
         }
     }
