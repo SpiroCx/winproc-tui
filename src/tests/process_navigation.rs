@@ -1576,3 +1576,32 @@ fn ctrl_a_requires_tracked_only_process_focus_without_input_or_modal() {
         assert_eq!(app.selected_process_identities, before, "context {context}");
     }
 }
+
+#[test]
+fn paused_resize_handle_entry_and_exit_request_an_immediate_redraw() {
+    let mut app = make_test_app(30, 10);
+    assign_private_graph(&mut app);
+    app.toggle_display_pause();
+    let captured = app.display_snapshot().captured_at;
+    let screen = Rect::new(0, 0, 180, 60);
+    app::sync_layout_state(&mut app, screen);
+    let handle = main_panel_areas_for_app(screen, &app)
+        .processes
+        .resize_handle
+        .unwrap();
+    let x = handle.x + handle.width / 2;
+    let marker_x = handle.x + handle.width.saturating_sub(1) / 2;
+    let enter = app::handle_mouse_event(&mut app, mouse_move(x, handle.y), screen);
+    assert!(enter.dirty);
+    assert!(!enter.should_quit);
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    assert_eq!(buffer[(marker_x, handle.y)].symbol(), "↕");
+    assert_eq!(buffer[(marker_x, handle.y)].bg, app.theme().focus_surface);
+    assert!(!app::handle_mouse_event(&mut app, mouse_move(x, handle.y), screen).dirty);
+    let leave = app::handle_mouse_event(&mut app, mouse_move(x, handle.y - 1), screen);
+    assert!(leave.dirty);
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    assert_ne!(buffer[(marker_x, handle.y)].symbol(), "↕");
+    assert!(app.is_display_paused());
+    assert_eq!(app.display_snapshot().captured_at, captured);
+}
