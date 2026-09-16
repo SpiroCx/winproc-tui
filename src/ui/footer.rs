@@ -67,12 +67,12 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                 (
                     "Space",
                     if app.selected_process_column_toggles_tracking() {
-                        "Track"
+                        "Track name"
                     } else {
                         "Graph"
                     },
                 ),
-                ("t", "Track"),
+                ("t", "Track name"),
                 ("c", "Columns"),
                 ("w/W", "Width"),
                 ("s", "Sort"),

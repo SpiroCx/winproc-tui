@@ -472,7 +472,10 @@ fn profile_dialog_changes_the_unified_startup_mode() {
     let rendered = render_app_to_text(&app, 100, 45);
     assert!(rendered.contains("STARTUP BEHAVIOR"), "{rendered}");
     assert!(rendered.contains("> Choose Profile"), "{rendered}");
-    assert!(rendered.contains("Ask which Profile to load"), "{rendered}");
+    assert!(
+        rendered.contains("Choose tracked names to load"),
+        "{rendered}"
+    );
 
     app.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE))
         .unwrap();
@@ -502,7 +505,7 @@ fn profile_open_dialog_is_direct_and_has_no_management_shortcuts() {
         "{rendered}"
     );
     assert!(
-        rendered.contains("Select a profile, then press Enter to open it."),
+        rendered.contains("Profiles store tracked names; Graphs last for this session."),
         "{rendered}"
     );
     assert!(rendered.contains("SAVED PROFILES"), "{rendered}");
@@ -522,7 +525,6 @@ fn profile_open_dialog_is_direct_and_has_no_management_shortcuts() {
     assert!(rendered.contains("memory-eater.exe"), "{rendered}");
     assert!(rendered.contains("2 tracked"), "{rendered}");
     for removed in [
-        "Graphs",
         "┃Processes",
         "┃Tracked-only",
         "Inspector",
@@ -687,7 +689,7 @@ fn ctrl_t_opens_profiles_and_save_load_are_rejected_outside_live() {
         "{rendered}"
     );
     assert!(
-        rendered.contains("Select a profile, then press Enter to open it."),
+        rendered.contains("Save the current tracked names as your first profile."),
         "{rendered}"
     );
     assert!(!rendered.contains("S Save New"), "{rendered}");
@@ -766,4 +768,21 @@ fn equivalent_tracking_names_do_not_prompt_when_opening_a_profile() {
     app.open_investigation_profiles();
     app.load_selected_investigation_profile();
     assert!(app.investigation_profiles_dialog.is_none());
+}
+
+#[test]
+fn empty_profile_browser_has_a_save_route_and_explicit_scope() {
+    let mut app = make_test_app(1, 10);
+    app.open_investigation_profiles();
+    let rendered = render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("Ctrl+S Save As"));
+    assert!(rendered.contains("Presentation preferences are shared"));
+    app.on_key(KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL))
+        .unwrap();
+    assert!(matches!(
+        app.investigation_profiles_view(),
+        Some(InvestigationProfilesView::NameInput { .. })
+    ));
+    let rendered = render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("Save tracked names. Graphs last for this session."));
 }

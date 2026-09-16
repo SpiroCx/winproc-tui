@@ -389,12 +389,12 @@ pub(crate) fn draw_recording_no_tracked_warning(
     );
     let lines = Text::from(vec![
         Line::from(Span::styled(
-            "No tracked processes",
+            "No tracked names",
             Style::default().fg(theme.text),
         )),
         Line::from(""),
         Line::from(Span::styled(
-            "Track a process before starting recording.",
+            "Processes: select a name, then press t to track.",
             Style::default().fg(theme.text),
         )),
         Line::from(""),

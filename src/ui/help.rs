@@ -185,7 +185,7 @@ const PROCESSES_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Space",
-        label: "Track Process/PID (Live) / metric Graph",
+        label: "Track name (all matching PIDs, Live) / metric Graph",
     },
     HelpItem {
         key: "s",
@@ -358,6 +358,18 @@ const CPU_ROWS: &[HelpItem] = &[
 ];
 
 const TRACKING_ROWS: &[HelpItem] = &[
+    HelpItem {
+        key: "Tracking scope",
+        label: "One image name includes all matching PIDs",
+    },
+    HelpItem {
+        key: "Profiles / Resume last",
+        label: "Keep tracked names; Graphs are session-only",
+    },
+    HelpItem {
+        key: "Ctrl+S (Profiles)",
+        label: "Save current tracked names as a new profile",
+    },
     HelpItem {
         key: "t",
         label: "Track / Untrack selected process (Live only)",

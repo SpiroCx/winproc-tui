@@ -4614,7 +4614,7 @@ impl App {
         }
         self.rebuild_visible_process_cache();
         self.clamp_process_table_state();
-        self.status = format!("Added to Tracking List: {name}");
+        self.status = format!("Added to Tracking List: {name} (all matching PIDs)");
     }
 
     #[cfg(test)]
@@ -4641,7 +4641,7 @@ impl App {
         self.status = if self.watch_list.len() == before {
             format!("Not in Tracking List: {name}")
         } else {
-            format!("Removed from Tracking List: {name}")
+            format!("Removed from Tracking List: {name} (all matching PIDs)")
         };
     }
 

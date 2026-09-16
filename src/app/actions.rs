@@ -134,6 +134,9 @@ impl App {
         if let Some(view) = self.investigation_profiles_view().cloned() {
             match view {
                 InvestigationProfilesView::Browse => match key.code {
+                    KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
+                        self.begin_save_investigation_profile_as()
+                    }
                     KeyCode::Esc => self.close_investigation_profiles(),
                     KeyCode::Enter => self.load_selected_investigation_profile(),
                     KeyCode::Delete => self.request_delete_selected_investigation_profile(),

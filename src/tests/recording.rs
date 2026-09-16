@@ -31,9 +31,9 @@ fn ctrl_r_requires_tracked_processes_before_opening_recording_dialog() {
     assert_eq!(app.status, "No tracked processes to record");
 
     let rendered = render_app_to_text(&app, 100, 45);
-    assert!(rendered.contains("No tracked processes"), "{rendered}");
+    assert!(rendered.contains("No tracked names"), "{rendered}");
     assert!(
-        rendered.contains("Track a process before starting recording."),
+        rendered.contains("Processes: select a name, then press t to track."),
         "{rendered}"
     );
     assert!(!rendered.contains("[ OK ]"), "{rendered}");

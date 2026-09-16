@@ -81,13 +81,12 @@ fn draw_browse(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: The
     frame.render_widget(block, popup);
     frame.render_widget(
         Paragraph::new(match app.activity() {
-            AppActivity::Live => "Select a profile, then press Enter to open it.",
-            AppActivity::Recording => {
-                "Stop Recording to open a profile. Rename and Delete remain available."
+            AppActivity::Live if count == 0 => {
+                "Save the current tracked names as your first profile."
             }
-            AppActivity::LogView => {
-                "Return to Live to open a profile. Rename and Delete remain available."
-            }
+            AppActivity::Live => "Profiles store tracked names; Graphs last for this session.",
+            AppActivity::Recording => "Stop Recording to open a profile. Delete remains available.",
+            AppActivity::LogView => "Return to Live to open a profile. Delete remains available.",
         })
         .style(Style::default().fg(theme.text)),
         row(content, INTRO_ROW),
@@ -175,17 +174,22 @@ fn draw_browse(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: The
             theme,
         );
         frame.render_widget(
-            Paragraph::new("No saved profiles.").style(Style::default().fg(theme.text)),
+            Paragraph::new("Presentation preferences are shared across profiles.")
+                .style(Style::default().fg(theme.text)),
             row(content, layout.summary_row),
         );
     }
 
-    let mut shortcuts = vec![("↑/↓", "Select")];
+    let mut shortcuts = Vec::new();
     if count > 0 {
+        shortcuts.push(("↑/↓", "Select"));
         if app.activity() == AppActivity::Live {
             shortcuts.push(("Enter", "Open"));
         }
         shortcuts.push(("Delete", "Delete"));
+    }
+    if app.activity() == AppActivity::Live {
+        shortcuts.push(("Ctrl+S", "Save As"));
     }
     shortcuts.push(("Esc", "Close"));
     frame.render_widget(
@@ -205,7 +209,7 @@ fn draw_startup(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Th
     frame.render_widget(Clear, popup);
     frame.render_widget(block, popup);
     frame.render_widget(
-        Paragraph::new("Choose what to load when winproc-tui starts.")
+        Paragraph::new("Restore tracked names; Graphs start empty.")
             .style(Style::default().fg(theme.muted)),
         row(content, 0),
     );
@@ -260,8 +264,14 @@ fn draw_name_input(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme:
     frame.render_widget(Clear, popup);
     frame.render_widget(block, popup);
     frame.render_widget(
-        Paragraph::new("Enter a unique profile name.").style(Style::default().fg(theme.text)),
+        Paragraph::new("Save tracked names. Graphs last for this session.")
+            .style(Style::default().fg(theme.text)),
         row(content, 0),
+    );
+    frame.render_widget(
+        Paragraph::new("Presentation preferences are shared.")
+            .style(Style::default().fg(theme.muted)),
+        row(content, 1),
     );
     frame.render_widget(
         Paragraph::new(input).style(Style::default().fg(theme.text).bg(theme.panel)),
@@ -461,9 +471,9 @@ fn profile_row_text(
 
 fn startup_description(startup: InvestigationStartup) -> &'static str {
     match startup {
-        InvestigationStartup::ResumeLast => "Restore the last investigation",
-        InvestigationStartup::ChooseProfile => "Ask which Profile to load",
-        InvestigationStartup::StartEmpty => "Use default investigation settings",
+        InvestigationStartup::ResumeLast => "Restore tracked names",
+        InvestigationStartup::ChooseProfile => "Choose tracked names to load",
+        InvestigationStartup::StartEmpty => "Start without tracked names",
     }
 }
 

@@ -90,3 +90,5 @@ Starting a Recording copies the working Tracking List into session-owned scope. 
 - A paused Ghost Row, registered process Graph, or open Process Info target must remain inspectable even when its identity would otherwise age out.
 
 Opening a Profile also confirms before replacing unsaved tracked-name changes, including reopening the active Profile. The same confirmation describes any retained-history removal; cancellation preserves the list, binding, and histories. Equivalent case-insensitive name sets do not prompt.
+
+Tracking action feedback names its image-name scope across matching PIDs. Profile creation and startup guidance state that saved tracking intent is separate from shared presentation preferences and session-only Graph registrations. The empty profile browser provides a direct Save As route for the current names.
