@@ -89,7 +89,7 @@ Drawing and mouse hit testing consume one `GraphWorkspaceLayout` result for shar
 
 Process Graph and Samples captions retain the target PID when names must be shortened. Exact B-A values occupy a separate caption so target labels cannot truncate their digits. Layout controls distinguish effective column count from a constrained explicit preference.
 
-Graph and Samples show their local history/follow state independently of the activity header. Manual history inspection offers a return to the latest sample; paused and recorded latest samples are labeled by their source.
+Graph and Samples show their local history/follow state independently of the activity header. Manual history inspection offers a return to the latest sample; paused and recorded latest samples are labeled by their source. Returning to latest or reaching the latest pan boundary uses that same source label; it never implies that display pause has ended or that recorded samples are live.
 
 When MEM and GPU share the available resource-panel space, visible tabs expose both resources. Keyboard focus cycling and direct tab clicks retain the existing resource metric selection and Graph action semantics.
 

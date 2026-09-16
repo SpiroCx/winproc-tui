@@ -405,6 +405,7 @@ pub(in crate::tests) fn make_test_app_with_workers(
         theme_index: 0,
         high_contrast: false,
         status: String::new(),
+        status_feedback: app::feedback::StatusFeedback::default(),
     }
 }
 

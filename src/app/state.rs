@@ -1347,6 +1347,7 @@ pub(crate) struct App {
     pub(crate) theme_index: usize,
     pub(crate) high_contrast: bool,
     pub(crate) status: String,
+    pub(crate) status_feedback: super::feedback::StatusFeedback,
 }
 
 impl App {
@@ -1642,6 +1643,7 @@ impl App {
             ab_comparison: None,
             last_screen_area: Rect::new(0, 0, 100, 45),
             status: initial.warning.unwrap_or_else(|| "Ready".to_string()),
+            status_feedback: super::feedback::StatusFeedback::default(),
         };
         app.ensure_sort_column_visible();
         app.rebuild_visible_process_cache();
@@ -3851,7 +3853,7 @@ impl App {
         self.scroll_details_samples_to_latest();
         self.details_live = true;
         self.ensure_selected_sample_in_graph_window();
-        self.status = "Samples selection: latest".to_string();
+        self.status = format!("Samples: {}", self.sample_follow_label());
     }
 
     pub(crate) fn set_details_sample_selected(&mut self, index: usize) {
@@ -4233,7 +4235,6 @@ impl App {
         self.graph_time_window_right_at = None;
         self.details_live = true;
         self.select_details_sample_latest();
-        self.status = "Details live mode enabled".to_string();
     }
 
     pub(crate) fn toggle_graph_y_axis_zero_min(&mut self) {
@@ -4352,7 +4353,7 @@ impl App {
         }
         self.details_live = self.graph_time_offset_seconds == 0;
         self.update_graph_time_window_right_edge();
-        self.status = format!("Graph offset: -{}s", self.graph_time_offset_seconds);
+        self.status = self.graph_offset_feedback();
     }
 
     pub(crate) fn set_graph_time_window_offset(&mut self, offset_seconds: u32) {
@@ -4367,7 +4368,15 @@ impl App {
             .min(max_offset);
         self.details_live = self.graph_time_offset_seconds == 0;
         self.update_graph_time_window_right_edge();
-        self.status = format!("Graph offset: -{}s", self.graph_time_offset_seconds);
+        self.status = self.graph_offset_feedback();
+    }
+
+    fn graph_offset_feedback(&self) -> String {
+        if self.graph_time_offset_seconds == 0 {
+            format!("Graph: {}", self.sample_follow_label())
+        } else {
+            format!("Graph offset: -{}s", self.graph_time_offset_seconds)
+        }
     }
 
     pub(crate) fn graph_visible_range_includes_latest_sample(&self) -> bool {
@@ -6470,11 +6479,7 @@ impl App {
 
     pub(crate) fn request_quit_confirmation(&mut self) {
         self.show_quit_confirmation = true;
-        self.status = if self.recording_session.is_some() {
-            "Recording is active. Stop recording and quit?".to_string()
-        } else {
-            "Quit? Press Enter or q to quit; Esc cancels".to_string()
-        };
+        self.status.clear();
     }
 
     pub(crate) fn is_main_menu_open(&self) -> bool {
@@ -6571,13 +6576,13 @@ impl App {
         self.main_menu_expanded.clear();
         self.main_menu_selected = 0;
         self.main_menu_hovered = None;
-        self.status = "Menu opened".to_string();
+        self.status.clear();
     }
 
     pub(crate) fn close_main_menu(&mut self) {
         self.dismiss_main_menu();
         self.ensure_visible_panel_focus();
-        self.status = "Menu closed".to_string();
+        self.status.clear();
     }
 
     pub(crate) fn dismiss_main_menu(&mut self) {

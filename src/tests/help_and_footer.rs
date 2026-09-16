@@ -901,3 +901,91 @@ fn confirmation_footer_clicks_preserve_recording_stop_semantics() {
     click_visible_shortcut(&mut app, "Enter/Esc/n Cancel");
     assert!(!app.show_recording_overwrite_confirmation);
 }
+
+#[test]
+fn action_feedback_expires_without_sampling_and_discards_previous_context() {
+    use std::time::{Duration, Instant};
+    let mut app = make_test_app(3, 10);
+    app.toggle_display_pause();
+    let now = Instant::now();
+    app.status = "Tracking added: proc-0".into();
+    assert!(app.refresh_status_feedback(now));
+    assert!(render_app_to_text(&app, 180, 60).contains("Tracking added: proc-0"));
+    assert!(!app.refresh_status_feedback(now + Duration::from_secs(5)));
+    assert!(app.refresh_status_feedback(now + Duration::from_secs(6)));
+    assert!(app.status.is_empty());
+    assert!(app.is_display_paused());
+
+    app.status = "Copied row: proc-0".into();
+    app.refresh_status_feedback(now);
+    app.show_help = true;
+    app.refresh_status_feedback(now);
+    assert!(!render_app_to_text(&app, 180, 60).contains("Copied row: proc-0"));
+    app.status = "Action unavailable".into();
+    app.refresh_status_feedback(now);
+    assert_eq!(app.status, "Action unavailable");
+    app.show_help = false;
+    app.refresh_status_feedback(now);
+    assert!(app.status.is_empty());
+
+    app.status = "Old process action".into();
+    app.refresh_status_feedback(now);
+    app.network_browser.visible = true;
+    app.refresh_status_feedback(now);
+    assert!(app.status.is_empty());
+    app.status = "Focus: Processes".into();
+    app.refresh_status_feedback(now);
+    app.refresh_status_feedback(now + Duration::from_secs(2));
+    assert!(app.status.is_empty());
+}
+
+#[test]
+fn transient_feedback_does_not_dismiss_recording_errors_or_repeat_quit_instructions() {
+    use std::time::{Duration, Instant};
+    let mut app = make_test_app(3, 10);
+    app.request_quit_confirmation();
+    let text = render_app_to_text(&app, 180, 60);
+    assert!(app.status.is_empty());
+    assert!(!text.lines().nth(58).unwrap().contains("quit"));
+    app.show_quit_confirmation = false;
+    app.present_active_recording_error("partial.jsonl".into(), anyhow::anyhow!("write failed"));
+    let before = app.recording_error.clone();
+    let now = Instant::now();
+    app.refresh_status_feedback(now);
+    app.refresh_status_feedback(now + Duration::from_secs(60));
+    assert_eq!(app.recording_error, before);
+    assert!(render_app_to_text(&app, 180, 60).contains("write failed"));
+}
+
+#[test]
+fn latest_feedback_uses_paused_or_recorded_source_and_never_negative_zero() {
+    let mut app = make_test_app(3, 10);
+    assign_private_graph(&mut app);
+    for (paused, recorded, expected) in [
+        (false, false, "Follow latest"),
+        (true, false, "Paused · Latest"),
+        (false, true, "Recorded · Latest"),
+    ] {
+        if app.is_display_paused() != paused {
+            app.toggle_display_pause();
+        }
+        app.log_view_path = recorded.then(|| "example.log".into());
+        app.select_details_sample_oldest();
+        app.enter_details_live_mode();
+        assert_eq!(app.status, format!("Samples: {expected}"));
+        assert_eq!(app.is_display_paused(), paused);
+        app.shift_graph_time_window(false);
+        assert_eq!(app.status, format!("Graph: {expected}"));
+        app.set_graph_time_window_offset(0);
+        assert_eq!(app.status, format!("Graph: {expected}"));
+        let text = render_app_to_text(&app, 180, 60);
+        assert!(!text.contains("-0s"));
+        assert!(!text.contains("live mode enabled"));
+    }
+    app.status = format!("Tracking added: {}", "long-name-".repeat(50));
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let text = render_app_to_text(&app, 180, 60);
+    assert_eq!(buffer.area, Rect::new(0, 0, 180, 60));
+    assert!(text.lines().nth(58).unwrap().starts_with("Tracking added:"));
+    assert!(text.lines().last().unwrap().contains("F1/? Help"));
+}

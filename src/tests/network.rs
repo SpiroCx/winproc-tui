@@ -443,7 +443,7 @@ fn network_partial_and_empty_captures_remain_distinguishable() {
     deliver(&mut app, &results, capture(&requests), snapshot);
     let text = render_app_to_text(&app, 140, 35);
     assert!(text.contains("3/4 tables"));
-    assert!(text.contains("Partial: TCP6: Windows error 5"));
+    assert!(text.contains("Partial: 3/4 tables; details show capture errors"));
     assert!(text.contains("partial capture"));
     assert!(text.contains("refresh"));
     assert!(!app.should_quit);
@@ -842,4 +842,42 @@ fn endpoint_menu_binds_owner_and_details_to_the_clicked_capture() {
     );
     let rendered = crate::ui::network::detail_lines(&app.network_browser, 180).join("\n");
     assert!(rendered.contains(&entry.key.local.to_string()));
+}
+
+#[test]
+fn network_counts_distinguish_displayed_and_captured_endpoint_rows() {
+    let (mut app, requests, results) = setup();
+    let mut snapshot = report(&app);
+    for endpoint in &mut snapshot.endpoints {
+        endpoint.owner = None;
+    }
+    snapshot.successful_tables = 3;
+    snapshot.failures.push("TCP6: Windows error 5".into());
+    app.open_network_browser();
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    for (all, filter, shown) in [
+        (false, "", 2),
+        (true, "", 3),
+        (true, "8080", 1),
+        (true, "absent", 0),
+    ] {
+        app.network_browser.all = all;
+        app.network_browser.filter = filter.into();
+        let text = render_app_to_text(&app, 180, 60);
+        assert!(
+            text.contains(&format!("{shown} shown / 3 captured endpoints")),
+            "{text}"
+        );
+        assert!(
+            text.contains(&format!(
+                "Owner unavailable/unverified: {shown} shown / 3 captured endpoint rows"
+            )),
+            "{text}"
+        );
+        assert!(text.contains("Partial: 3/4 tables"), "{text}");
+        assert!(!text.contains("3 owners"));
+    }
+    app.network_browser.detail = true;
+    let text = render_app_to_text(&app, 180, 60);
+    assert!(text.contains("TCP6: Windows error 5"), "{text}");
 }

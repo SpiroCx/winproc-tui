@@ -2,6 +2,7 @@ pub(crate) mod actions;
 pub(crate) mod clipboard;
 pub(crate) mod context_menu;
 pub(crate) mod export;
+pub(crate) mod feedback;
 pub(crate) mod file_users;
 pub(crate) mod log_format;
 pub(crate) mod logs;
@@ -118,6 +119,7 @@ pub(crate) fn run_tui(terminal: &mut AppTerminal, app: &mut App) -> Result<()> {
         dirty |= app.poll_log_workers();
         dirty |= app.request_due_process_info()?;
         dirty |= app.request_due_open_files_at(Instant::now())?;
+        dirty |= app.refresh_status_feedback(Instant::now());
         let sample_freshness = app.sample_freshness();
         if sample_freshness != last_sample_freshness {
             last_sample_freshness = sample_freshness;

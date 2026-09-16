@@ -198,7 +198,7 @@ pub(crate) fn draw_content(
     let entries = view.entries();
     let status = match &view.report {
         Some(report) => format!(
-            "{}{} · {} endpoints · {}/4 tables",
+            "{}{} · {} shown / {} captured endpoints · {}/4 tables",
             if view.pending.is_some() {
                 "Updating · "
             } else {
@@ -206,6 +206,7 @@ pub(crate) fn draw_content(
             },
             report.captured_at.format("%H:%M:%S"),
             entries.len(),
+            report.endpoints.len(),
             report.successful_tables
         ),
         None if view.pending.is_some() => "Loading endpoints...".into(),
@@ -247,17 +248,16 @@ pub(crate) fn draw_content(
         .clone()
         .or_else(|| {
             view.report.as_ref().and_then(|report| {
+                let unresolved = report.endpoints.iter().filter(|entry| entry.owner.is_none()).count();
+                let shown_unresolved = entries.iter().filter(|entry| entry.owner.is_none()).count();
+                let mut notices = Vec::new();
                 if !report.failures.is_empty() {
-                    Some(format!("Partial: {}", report.failures.join("; ")))
-                } else {
-                    let unresolved = report
-                        .endpoints
-                        .iter()
-                        .filter(|entry| entry.owner.is_none())
-                        .count();
-                    (unresolved > 0)
-                        .then(|| format!("{unresolved} owners unavailable or unverified"))
+                    notices.push(format!("Partial: {}/4 tables; details show capture errors", report.successful_tables));
                 }
+                if unresolved > 0 {
+                    notices.push(format!("Owner unavailable/unverified: {shown_unresolved} shown / {unresolved} captured endpoint rows"));
+                }
+                (!notices.is_empty()).then(|| notices.join(" · "))
             })
         })
         .unwrap_or_else(|| {
