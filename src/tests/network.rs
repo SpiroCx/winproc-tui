@@ -91,16 +91,18 @@ fn press(app: &mut App, code: KeyCode) {
 }
 
 #[test]
-fn network_browser_rejects_old_generations_and_deduplicates_refresh() {
+fn network_browser_retains_sessions_rejects_stale_results_and_deduplicates_refresh() {
     let (mut app, requests, results) = setup();
     app.open_network_browser();
-    let old = capture(&requests);
+    let mut old = capture(&requests);
     app.refresh_network(true);
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     press(&mut app, KeyCode::Esc);
     app.open_network_browser();
-    let current = capture(&requests);
-    assert_ne!(old.generation, current.generation);
+    assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
+    let current = app.network_browser.pending.clone().unwrap();
+    assert_eq!(old.generation, current.generation);
+    old.generation = old.generation.wrapping_add(1);
     results
         .send(NetworkResult {
             context: old,
@@ -584,7 +586,7 @@ fn network_wide_browser_renders_full_scoped_ipv6_endpoints_without_cell_clipping
     let screen = Rect::new(0, 0, 200, 35);
     sync_layout_state(&mut app, screen);
     let modal = ui::network::browser_layout(screen);
-    assert_eq!(modal.area.width, 184);
+    assert_eq!(modal.area.width, screen.width);
     let layout = ui::network::content_layout(modal.content);
     let buffer = render_app_to_buffer(&app, screen.width, screen.height);
     let row = (layout.rows.x..layout.rows.right())
@@ -680,4 +682,93 @@ fn network_tcp_state_labels_match_windows_netstat_in_details_filter_and_copy() {
     assert!(!entry.matches("Bound"));
     view.report.as_mut().unwrap().endpoints = vec![entry];
     assert!(ui::network::detail_lines(&view, 80).contains(&"State: ".to_string()));
+}
+
+#[test]
+fn investigation_views_preserve_results_and_expose_direct_header_actions() {
+    let (mut app, requests, results) = setup();
+    let screen = Rect::new(0, 0, 180, 60);
+    sync_layout_state(&mut app, screen);
+    let activity = app.activity();
+    press(&mut app, KeyCode::F(3));
+    let snapshot = report(&app);
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    app.network_browser.filter = "8080".into();
+    let captured = app.network_browser.report.as_ref().unwrap().captured_at;
+    assert!(
+        ui::network::content_layout(ui::network::browser_layout(screen).content)
+            .rows
+            .height
+            > 40
+    );
+    let text = render_app_to_text(&app, 180, 60);
+    for label in [
+        "[Processes]",
+        "[Network]",
+        "[Find file users]",
+        "[View]",
+        "[Session]",
+        "[Settings]",
+        "[Help]",
+    ] {
+        assert!(text.lines().next().unwrap().contains(label), "{text}");
+    }
+    press(&mut app, KeyCode::F(4));
+    assert!(app.file_users.visible);
+    assert!(app.file_users.pending.is_none());
+    app.file_users.draft = "unsent query".into();
+    press(&mut app, KeyCode::F(2));
+    assert!(!app.file_users.visible && !app.network_browser.visible);
+    press(&mut app, KeyCode::F(3));
+    assert_eq!(app.network_browser.filter, "8080");
+    assert_eq!(
+        app.network_browser.report.as_ref().unwrap().captured_at,
+        captured
+    );
+    assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
+    let help = ui::header::header_actions(ui::screen_layout(screen)[0], &app)
+        .into_iter()
+        .find(|(action, _)| *action == ui::header::HeaderAction::Help)
+        .unwrap()
+        .1;
+    app.on_mouse(left_click(help.x, help.y), screen);
+    assert!(app.show_help);
+    press(&mut app, KeyCode::Esc);
+    assert!(app.network_browser.visible);
+    app.on_mouse(left_click(1, 0), screen);
+    assert!(app.is_main_menu_open());
+    press(&mut app, KeyCode::Esc);
+    app.activate_header_action(ui::header::HeaderAction::View);
+    assert!(app.is_main_menu_open());
+    press(&mut app, KeyCode::Esc);
+    assert!(!app.is_main_menu_open());
+    assert!(app.network_browser.visible);
+    press(&mut app, KeyCode::F(4));
+    assert_eq!(app.file_users.draft, "unsent query");
+    assert!(app.file_users.pending.is_none());
+    assert_eq!(app.activity(), activity);
+    press(&mut app, KeyCode::F(2));
+    let entry = ui::system_panel::network_endpoint_action_area(screen, &app).unwrap();
+    app.on_mouse(left_click(entry.x, entry.y), screen);
+    assert!(app.network_browser.visible);
+    press(&mut app, KeyCode::F(2));
+    app.focused_panel = crate::app::FocusedPanel::SystemActivity;
+    press(&mut app, KeyCode::Enter);
+    assert!(app.network_browser.visible);
+}
+
+#[test]
+fn hidden_network_capture_finishes_without_opening_an_inspector() {
+    let (mut app, requests, results) = setup();
+    app.open_network_browser();
+    let context = capture(&requests);
+    press(&mut app, KeyCode::F(2));
+    let snapshot = report(&app);
+    deliver(&mut app, &results, context, snapshot);
+    assert!(!app.network_browser.visible && !app.show_process_info_dialog);
+    press(&mut app, KeyCode::F(3));
+    assert_eq!(app.network_browser.entries().len(), 2);
+    assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
+    let wide = render_app_to_text(&app, 240, 60);
+    assert!(wide.contains("Protocol: TCP4"), "{wide}");
 }

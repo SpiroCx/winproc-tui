@@ -237,6 +237,7 @@ pub(crate) fn handle_mouse_event(
         app.process_disclosure_hovered.clone(),
         app.main_menu_hovered,
         app.header_menu_hovered,
+        app.header_action_hovered,
     );
     app.on_mouse(mouse, screen_area);
     let dirty = mouse.kind != MouseEventKind::Moved
@@ -248,6 +249,7 @@ pub(crate) fn handle_mouse_event(
                 app.process_disclosure_hovered.clone(),
                 app.main_menu_hovered,
                 app.header_menu_hovered,
+                app.header_action_hovered,
             );
     MouseEventOutcome {
         dirty,

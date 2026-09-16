@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-const BROWSER: ScrollableModal = ScrollableModal::new("FIND FILE USERS", 160, 24, 2);
+const BROWSER: ScrollableModal = ScrollableModal::new("FIND FILE USERS", u16::MAX, u16::MAX, 2);
 
 pub(crate) fn browser_layout(screen: Rect) -> ScrollableModalLayout {
     BROWSER.layout(super::screen_layout(screen)[1])

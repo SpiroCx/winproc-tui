@@ -1153,6 +1153,7 @@ pub(crate) struct App {
     pub(crate) main_menu_selected: usize,
     pub(crate) main_menu_hovered: Option<usize>,
     pub(crate) header_menu_hovered: bool,
+    pub(crate) header_action_hovered: Option<crate::ui::header::HeaderAction>,
     pub(crate) show_help: bool,
     pub(crate) help_scroll: ScrollableModalState,
     pub(crate) show_column_picker: bool,
@@ -1416,6 +1417,7 @@ impl App {
             main_menu_selected: 0,
             main_menu_hovered: None,
             header_menu_hovered: false,
+            header_action_hovered: None,
             show_help: false,
             help_scroll: ScrollableModalState {
                 page_size: 1,
@@ -1728,14 +1730,16 @@ impl App {
     }
 
     pub(crate) fn has_modal_focus(&self) -> bool {
+        self.has_workspace_overlay() || self.network_browser.visible || self.file_users.visible
+    }
+
+    pub(crate) fn has_workspace_overlay(&self) -> bool {
         self.main_menu_activity.is_some()
             || self.show_help
             || self.show_column_picker
             || self.show_log_list
             || self.show_log_dir_dialog
             || self.show_process_info_dialog
-            || self.network_browser.visible
-            || self.file_users.visible
             || self.show_cpu_core_dialog
             || self.show_system_info_dialog
             || self.graph_reorder_dialog.is_some()
@@ -6627,7 +6631,7 @@ impl App {
             .position(|row| row.item == MainMenuItem::Section(section))
     }
 
-    fn open_main_menu_section(&mut self, section: MainMenuSection) {
+    pub(crate) fn open_main_menu_section(&mut self, section: MainMenuSection) {
         self.main_menu_expanded.insert(section);
         let rows = self.main_menu_rows();
         let parent_index = rows

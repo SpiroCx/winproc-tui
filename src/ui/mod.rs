@@ -139,7 +139,13 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
     let panels = layout::main_panel_areas_for_app(area, app);
 
     draw_header(frame, layout[0], app, theme);
-    draw_body(frame, panels, app, theme);
+    if app.network_browser.visible {
+        network::draw_browser(frame, area, app, theme);
+    } else if app.file_users.visible {
+        file_users::draw_browser(frame, area, app, theme);
+    } else {
+        draw_body(frame, panels, app, theme);
+    }
     draw_footer(frame, layout[2], app, theme);
 
     if let Some(strength) = modal_scrim_strength(app) {
@@ -165,19 +171,7 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
         draw_log_dir_dialog(frame, area, app, theme);
     }
     if app.show_process_info_dialog {
-        if app.file_users.visible {
-            file_users::draw_browser(frame, area, app, theme);
-            frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
-        }
-        if app.network_browser.visible {
-            network::draw_browser(frame, area, app, theme);
-            frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
-        }
         draw_process_info_dialog(frame, area, app, theme);
-    } else if app.network_browser.visible {
-        network::draw_browser(frame, area, app, theme);
-    } else if app.file_users.visible {
-        file_users::draw_browser(frame, area, app, theme);
     }
     if app.show_cpu_core_dialog {
         draw_cpu_core_dialog(frame, area, app, theme);
@@ -240,7 +234,7 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
 }
 
 fn modal_scrim_strength(app: &App) -> Option<ModalScrimStrength> {
-    if !app.has_modal_focus() {
+    if !app.has_workspace_overlay() {
         return None;
     }
     if app.recording_error.is_some()

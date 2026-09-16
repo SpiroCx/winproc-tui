@@ -641,10 +641,29 @@ impl App {
             return Ok(());
         }
 
-        if self.network_browser.visible {
+        if !self.has_workspace_overlay() && !self.is_filter_editing() && key.modifiers.is_empty() {
+            let action = match key.code {
+                KeyCode::F(2) => Some(crate::ui::header::HeaderAction::Processes),
+                KeyCode::F(3) => Some(crate::ui::header::HeaderAction::Network),
+                KeyCode::F(4) => Some(crate::ui::header::HeaderAction::FileUsers),
+                _ => None,
+            };
+            if let Some(action) = action {
+                self.activate_header_action(action);
+                return Ok(());
+            }
+        }
+        if self.network_browser.visible && !self.has_workspace_overlay() {
+            if key.code == KeyCode::Esc
+                && !self.network_browser.editing
+                && !self.network_browser.detail
+            {
+                self.network_browser.visible = false;
+                return Ok(());
+            }
             return self.on_network_key(key, true);
         }
-        if self.file_users.visible {
+        if self.file_users.visible && !self.has_workspace_overlay() {
             return self.on_file_users_key(key);
         }
 
@@ -1065,6 +1084,10 @@ impl App {
             }
         }
 
+        if self.focused_panel == FocusedPanel::SystemActivity && key.code == KeyCode::Enter {
+            self.open_network_browser();
+            return Ok(());
+        }
         if self.focused_panel == FocusedPanel::SystemActivity {
             match key.code {
                 KeyCode::Up => {
@@ -1452,6 +1475,27 @@ impl App {
             return;
         }
 
+        self.header_action_hovered = if self.has_workspace_overlay() {
+            None
+        } else {
+            crate::ui::header::header_action_at(screen_area, self, mouse.column, mouse.row).or_else(
+                || {
+                    (!self.network_browser.visible && !self.file_users.visible)
+                        .then(|| {
+                            crate::ui::system_panel::network_endpoint_action_area(screen_area, self)
+                        })
+                        .flatten()
+                        .filter(|area| contains_point(*area, mouse.column, mouse.row))
+                        .map(|_| crate::ui::header::HeaderAction::Network)
+                },
+            )
+        };
+        if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+            && let Some(action) = self.header_action_hovered
+        {
+            self.activate_header_action(action);
+            return;
+        }
         let has_modal_focus = self.has_modal_focus();
         if has_modal_focus {
             self.clear_source_cell_click();
@@ -1535,7 +1579,11 @@ impl App {
             return;
         }
 
-        if !has_modal_focus
+        if !self.has_workspace_overlay() {
+            self.header_menu_hovered = header_menu_area_for_screen(screen_area, self)
+                .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
+        }
+        if !self.has_workspace_overlay()
             && self.header_menu_hovered
             && mouse.kind == MouseEventKind::Down(MouseButton::Left)
         {
@@ -1818,11 +1866,11 @@ impl App {
             return;
         }
 
-        if self.network_browser.visible {
+        if self.network_browser.visible && !self.has_workspace_overlay() {
             self.on_network_mouse(mouse, true, screen_area);
             return;
         }
-        if self.file_users.visible {
+        if self.file_users.visible && !self.has_workspace_overlay() {
             self.on_file_users_mouse(mouse, screen_area);
             return;
         }

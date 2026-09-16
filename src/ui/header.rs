@@ -17,6 +17,114 @@ const HEADER_MENU_LABEL: &str = "[MENU]";
 const PROFILE_LABEL_MAX_WIDTH: u16 = 28;
 
 pub(crate) fn draw_header(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+    let mut spans = header_status_spans(area, app, theme);
+    let activity = app.activity();
+    let active_log_name = app.active_log_path().map(|path| {
+        path.file_name()
+            .unwrap_or(path.as_os_str())
+            .to_string_lossy()
+            .into_owned()
+    });
+    let product_and_version = format!("winproc-tui {}", env!("CARGO_PKG_VERSION"));
+    let product_width = product_and_version.chars().count();
+    let left_content_width = spans_width(&spans).saturating_add(
+        active_log_name
+            .as_ref()
+            .map(|name| HEADER_ITEM_GAP.saturating_add(name.chars().count()))
+            .unwrap_or(0),
+    );
+    let show_product_and_version = left_content_width
+        .saturating_add(HEADER_ITEM_GAP)
+        .saturating_add(product_width)
+        <= usize::from(area.width);
+    let left_area = if show_product_and_version {
+        Rect::new(
+            area.x,
+            area.y,
+            area.width
+                .saturating_sub(product_width as u16)
+                .saturating_sub(HEADER_ITEM_GAP as u16),
+            area.height,
+        )
+    } else {
+        area
+    };
+
+    let actions = header_actions(area, app);
+    let left_area = actions.first().map_or(left_area, |(_, rect)| {
+        Rect::new(
+            left_area.x,
+            left_area.y,
+            rect.x.saturating_sub(left_area.x).saturating_sub(2),
+            left_area.height,
+        )
+    });
+    if let Some(name) = active_log_name {
+        append_log_name(
+            &mut spans,
+            left_area,
+            &name,
+            if activity == AppActivity::Recording {
+                theme.warning
+            } else {
+                theme.text
+            },
+        );
+    }
+
+    let header = Line::from(spans);
+
+    let header_widget = Paragraph::new(header)
+        .style(Style::default().bg(theme.panel))
+        .alignment(Alignment::Left);
+    frame.render_widget(header_widget, area);
+
+    for (action, rect) in actions {
+        let selected = match action {
+            HeaderAction::Processes => !app.network_browser.visible && !app.file_users.visible,
+            HeaderAction::Network => app.network_browser.visible,
+            HeaderAction::FileUsers => app.file_users.visible,
+            _ => false,
+        };
+        let hovered = app.header_action_hovered == Some(action);
+        frame.render_widget(
+            Paragraph::new(action.label()).style(
+                Style::default()
+                    .fg(if selected {
+                        theme.focus_border
+                    } else {
+                        theme.text
+                    })
+                    .bg(if hovered {
+                        theme.focus_surface
+                    } else {
+                        theme.panel
+                    })
+                    .add_modifier(if hovered || selected {
+                        Modifier::BOLD
+                    } else {
+                        Modifier::empty()
+                    }),
+            ),
+            rect,
+        );
+    }
+    if show_product_and_version {
+        let product_area = Rect::new(
+            area.x
+                .saturating_add(area.width.saturating_sub(product_width as u16)),
+            area.y,
+            product_width as u16,
+            area.height,
+        );
+        let product_widget = Paragraph::new(product_and_version)
+            .style(Style::default().fg(theme.muted).bg(theme.panel))
+            .alignment(Alignment::Right);
+        frame.render_widget(product_widget, product_area);
+    }
+}
+
+fn header_status_spans(area: Rect, app: &App, theme: Theme) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
 
     let activity = app.activity();
@@ -70,70 +178,7 @@ pub(crate) fn draw_header(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App,
         spans.push(mode_span("DISPLAY PAUSED", theme.warning, theme));
     }
     append_profile_label(&mut spans, app, activity, theme);
-    let active_log_name = app.active_log_path().map(|path| {
-        path.file_name()
-            .unwrap_or(path.as_os_str())
-            .to_string_lossy()
-            .into_owned()
-    });
-    let product_and_version = format!("winproc-tui {}", env!("CARGO_PKG_VERSION"));
-    let product_width = product_and_version.chars().count();
-    let left_content_width = spans_width(&spans).saturating_add(
-        active_log_name
-            .as_ref()
-            .map(|name| HEADER_ITEM_GAP.saturating_add(name.chars().count()))
-            .unwrap_or(0),
-    );
-    let show_product_and_version = left_content_width
-        .saturating_add(HEADER_ITEM_GAP)
-        .saturating_add(product_width)
-        <= usize::from(area.width);
-    let left_area = if show_product_and_version {
-        Rect::new(
-            area.x,
-            area.y,
-            area.width
-                .saturating_sub(product_width as u16)
-                .saturating_sub(HEADER_ITEM_GAP as u16),
-            area.height,
-        )
-    } else {
-        area
-    };
-
-    if let Some(name) = active_log_name {
-        append_log_name(
-            &mut spans,
-            left_area,
-            &name,
-            if activity == AppActivity::Recording {
-                theme.warning
-            } else {
-                theme.text
-            },
-        );
-    }
-
-    let header = Line::from(spans);
-
-    let header_widget = Paragraph::new(header)
-        .style(Style::default().bg(theme.panel))
-        .alignment(Alignment::Left);
-    frame.render_widget(header_widget, area);
-
-    if show_product_and_version {
-        let product_area = Rect::new(
-            area.x
-                .saturating_add(area.width.saturating_sub(product_width as u16)),
-            area.y,
-            product_width as u16,
-            area.height,
-        );
-        let product_widget = Paragraph::new(product_and_version)
-            .style(Style::default().fg(theme.muted).bg(theme.panel))
-            .alignment(Alignment::Right);
-        frame.render_widget(product_widget, product_area);
-    }
+    spans
 }
 
 pub(crate) fn header_menu_area(area: Rect, app: &App) -> Option<Rect> {
@@ -285,4 +330,81 @@ fn truncate_middle(value: &str, max_width: u16) -> String {
         .rev()
         .collect::<String>();
     format!("{head}...{tail}")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HeaderAction {
+    Processes,
+    Network,
+    FileUsers,
+    Profile,
+    View,
+    Session,
+    Settings,
+    Help,
+}
+impl HeaderAction {
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Processes => "[Processes]",
+            Self::Network => "[Network]",
+            Self::FileUsers => "[Find file users]",
+            Self::Profile => "[Profile]",
+            Self::View => "[View]",
+            Self::Session => "[Session]",
+            Self::Settings => "[Settings]",
+            Self::Help => "[Help]",
+        }
+    }
+}
+
+pub(crate) fn header_actions(area: Rect, app: &App) -> Vec<(HeaderAction, Rect)> {
+    let mut x = area
+        .x
+        .saturating_add(spans_width(&header_status_spans(area, app, app.theme())) as u16)
+        .saturating_add(2);
+    if let Some(path) = app.active_log_path() {
+        x = x.saturating_add(
+            path.file_name()
+                .unwrap_or(path.as_os_str())
+                .to_string_lossy()
+                .chars()
+                .count()
+                .min(60) as u16
+                + 2,
+        );
+    }
+    let end = area
+        .right()
+        .saturating_sub(format!("winproc-tui {}", env!("CARGO_PKG_VERSION")).len() as u16 + 2);
+    let mut actions = Vec::new();
+    for action in [
+        HeaderAction::Processes,
+        HeaderAction::Network,
+        HeaderAction::FileUsers,
+        HeaderAction::Profile,
+        HeaderAction::View,
+        HeaderAction::Session,
+        HeaderAction::Settings,
+        HeaderAction::Help,
+    ] {
+        if app.activity() == AppActivity::LogView
+            && matches!(action, HeaderAction::Network | HeaderAction::FileUsers)
+        {
+            continue;
+        }
+        let width = action.label().len() as u16;
+        if x.saturating_add(width) <= end {
+            actions.push((action, Rect::new(x, area.y, width, area.height.min(1))));
+            x = x.saturating_add(width + 1);
+        }
+    }
+    actions
+}
+
+pub(crate) fn header_action_at(screen: Rect, app: &App, x: u16, y: u16) -> Option<HeaderAction> {
+    header_actions(crate::ui::screen_layout(screen)[0], app)
+        .into_iter()
+        .find(|(_, rect)| rect.contains(ratatui::layout::Position::new(x, y)))
+        .map(|(action, _)| action)
 }

@@ -18,10 +18,14 @@ use crate::{
     },
 };
 
-const BROWSER: ScrollableModal = ScrollableModal::new("NETWORK ENDPOINTS", 180, 20, 2);
+const BROWSER: ScrollableModal = ScrollableModal::new("NETWORK ENDPOINTS", u16::MAX, u16::MAX, 2);
 
 pub(crate) fn browser_layout(screen: Rect) -> ScrollableModalLayout {
-    BROWSER.layout(super::screen_layout(screen)[1])
+    let mut layout = BROWSER.layout(super::screen_layout(screen)[1]);
+    if layout.content.width >= 236 {
+        layout.content.width -= 52;
+    }
+    layout
 }
 
 pub(crate) fn active_content_area(screen: Rect, global: bool) -> Rect {
@@ -92,6 +96,24 @@ pub(crate) fn draw_browser(frame: &mut ratatui::Frame<'_>, screen: Rect, app: &A
         !app.show_process_info_dialog,
         theme,
     );
+    if layout.area.width >= 240 && !app.network_browser.detail {
+        let inspector = Rect::new(
+            layout.content.right() + 2,
+            layout.content.y,
+            50,
+            layout.content.height,
+        );
+        frame.render_widget(
+            Paragraph::new(
+                detail_lines(&app.network_browser, inspector.width)
+                    .into_iter()
+                    .map(Line::raw)
+                    .collect::<Vec<_>>(),
+            )
+            .style(Style::default().fg(theme.muted).bg(theme.panel_alt)),
+            inspector,
+        );
+    }
     let secondary = if app.network_browser.editing {
         vec![("Backspace/Delete", "edit"), ("Home/End", "first/last")]
     } else if app.network_browser.detail {

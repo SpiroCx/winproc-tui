@@ -39,7 +39,7 @@ struct HelpSection {
 const FILE_USERS_ROWS: &[HelpItem] = &[
     HelpItem {
         key: "Menu: Investigate",
-        label: "Network endpoints / Find file users (Live/REC)",
+        label: "Network / Find file users; also in header (Live/REC)",
     },
     HelpItem {
         key: "Find file users: Tab/Shift+Tab",
@@ -68,6 +68,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 ];
 
 const GLOBAL_ROWS: &[HelpItem] = &[
+    HelpItem {
+        key: "F2/F3/F4",
+        label: "Processes / Network / Find file users view",
+    },
     HelpItem {
         key: "Ctrl+↑/↓/←/→",
         label: "Focus neighboring visible panel (no wrap)",

@@ -190,6 +190,7 @@ pub(in crate::tests) fn make_test_app_with_workers(
         main_menu_selected: 0,
         main_menu_hovered: None,
         header_menu_hovered: false,
+        header_action_hovered: None,
         show_help: false,
         help_scroll: ui::widgets::scrollable_modal::ScrollableModalState {
             page_size: 1,

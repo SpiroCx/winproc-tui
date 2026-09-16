@@ -320,3 +320,47 @@ fn directional_neighbor_score(from: Rect, to: Rect, key: KeyCode) -> Option<(boo
     let distance = (a_start + (a_end - a_start) / 2).abs_diff(b_start + (b_end - b_start) / 2);
     Some((separate, gap, distance))
 }
+
+use crate::ui::header::HeaderAction;
+
+impl App {
+    pub(crate) fn activate_header_action(&mut self, action: HeaderAction) {
+        use crate::app::state::MainMenuSection;
+        match action {
+            HeaderAction::Processes => {
+                self.network_browser.visible = false;
+                self.file_users.visible = false;
+            }
+            HeaderAction::Network => self.open_network_browser(),
+            HeaderAction::FileUsers => self.open_file_users(),
+            HeaderAction::Help => self.open_help(),
+            HeaderAction::Session => {
+                self.open_main_menu();
+                if self.activity() != crate::app::AppActivity::Recording {
+                    self.open_main_menu_section(MainMenuSection::Log);
+                }
+                if let Some(index) = self.main_menu_rows().iter().position(|row| {
+                    matches!(
+                        row.item,
+                        crate::app::state::MainMenuItem::Action(
+                            crate::app::state::MainMenuAction::StartRecording
+                                | crate::app::state::MainMenuAction::StopRecording
+                        )
+                    )
+                }) {
+                    self.main_menu_selected = index;
+                }
+            }
+            _ => {
+                self.open_main_menu();
+                let section = match action {
+                    HeaderAction::Profile => MainMenuSection::Profile,
+                    HeaderAction::View => MainMenuSection::View,
+                    HeaderAction::Session => MainMenuSection::Log,
+                    _ => MainMenuSection::Config,
+                };
+                self.open_main_menu_section(section);
+            }
+        }
+    }
+}

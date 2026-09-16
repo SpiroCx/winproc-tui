@@ -85,13 +85,15 @@ impl App {
         if self.activity() == AppActivity::LogView {
             return;
         }
-        self.network_next_id = self.network_next_id.wrapping_add(1).max(1);
-        self.network_browser = NetworkView {
-            visible: true,
-            generation: self.network_next_id,
-            ..NetworkView::default()
-        };
-        self.refresh_network(true);
+        self.file_users.visible = false;
+        self.network_browser.visible = true;
+        if self.network_browser.generation == 0 {
+            self.network_next_id = self.network_next_id.wrapping_add(1).max(1);
+            self.network_browser.generation = self.network_next_id;
+        }
+        if !self.network_browser.attempted {
+            self.refresh_network(true);
+        }
     }
 
     pub(crate) fn reset_process_network(&mut self) {
@@ -149,7 +151,7 @@ impl App {
             let global = result.context.target.is_none();
             let view = self.network_view(global);
             if self.activity() == AppActivity::LogView
-                || !view.visible
+                || (!global && !view.visible)
                 || view.pending.as_ref() != Some(&result.context)
                 || view.generation != result.context.generation
                 || view.target != result.context.target
@@ -162,6 +164,13 @@ impl App {
                             .map(|target| &target.identity)
                             != result.context.target.as_ref()))
             {
+                continue;
+            }
+            if global
+                && matches!(result.payload, NetworkPayload::Owner(_))
+                && (!view.visible || self.has_workspace_overlay())
+            {
+                self.network_browser.pending = None;
                 continue;
             }
             changed = true;
@@ -182,6 +191,9 @@ impl App {
                     view.notice = Some(error)
                 }
                 NetworkPayload::Owner(Ok(owner)) => {
+                    if !self.network_browser.visible || self.has_workspace_overlay() {
+                        continue;
+                    }
                     // The worker reopens and verifies the precise native creation time before navigation.
                     let identity = owner.identity();
                     let process = self
@@ -340,7 +352,7 @@ impl App {
             }
             KeyCode::Esc => {
                 if global {
-                    self.network_browser = NetworkView::default();
+                    self.network_browser.visible = false;
                 } else {
                     self.close_process_info_dialog();
                 }

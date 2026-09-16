@@ -45,16 +45,15 @@ impl App {
         if self.activity() == AppActivity::LogView {
             return;
         }
-        self.file_users_worker.cancel();
-        self.file_users = FileUsersView {
-            visible: true,
-            ..FileUsersView::default()
-        };
+        self.network_browser.visible = false;
+        self.file_users.visible = true;
     }
 
     pub(crate) fn close_file_users(&mut self) {
         self.file_users_worker.cancel();
-        self.file_users = FileUsersView::default();
+        self.file_users.visible = false;
+        self.file_users.pending = None;
+        self.file_users.verifying = false;
     }
 
     pub(crate) fn start_file_search(&mut self) {
@@ -98,10 +97,7 @@ impl App {
         let Some(update) = self.file_users_worker.take_update() else {
             return false;
         };
-        if !self.file_users.visible
-            || self.activity() == AppActivity::LogView
-            || self.file_users.pending != Some(update.id)
-        {
+        if self.activity() == AppActivity::LogView || self.file_users.pending != Some(update.id) {
             return false;
         }
         let finished = update.report.end.is_some();
@@ -118,7 +114,9 @@ impl App {
                             .into(),
                     ),
                 };
-                if update.report.end == Some(FileSearchEnd::Complete)
+                if self.file_users.visible
+                    && !self.has_workspace_overlay()
+                    && update.report.end == Some(FileSearchEnd::Complete)
                     && update.report.cleanup_warning.is_none()
                     && let Some(owner) = update.owner
                 {
