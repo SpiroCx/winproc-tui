@@ -1111,7 +1111,7 @@ fn process_metric_double_click_requires_the_same_visible_process_identity() {
 }
 
 #[test]
-fn process_identity_cell_double_click_toggles_tracking_without_adding_a_graph() {
+fn process_identity_cell_double_click_opens_info_without_tracking_or_graph_changes() {
     let mut app = make_test_app(2, 10);
     app.process_columns = vec![MetricColumn::HandleCount];
     let screen = Rect::new(0, 0, 140, 60);
@@ -1130,12 +1130,19 @@ fn process_identity_cell_double_click_toggles_tracking_without_adding_a_graph() 
     assert!(app.watch_list.is_empty());
 
     app.on_mouse(left_click(process_x, y), screen);
-    assert_eq!(app.watch_list, vec![selected_name]);
+    assert!(app.watch_list.is_empty());
+    assert!(app.show_process_info_dialog);
+    assert_eq!(
+        app.process_info_target.as_ref().unwrap().identity.name,
+        selected_name
+    );
+    app.close_process_info_dialog();
 
     app.on_mouse(left_click(pid_x, y), screen);
     app.on_mouse(left_click(pid_x, y), screen);
 
     assert!(app.watch_list.is_empty());
+    assert!(app.show_process_info_dialog);
     assert!(app.graph_entries.is_empty());
 }
 

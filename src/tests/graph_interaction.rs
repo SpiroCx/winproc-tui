@@ -879,6 +879,7 @@ fn graph_right_button_drag_pans_visible_range() {
     assert_eq!(app.graph_time_span_seconds, 60);
     assert!(app.graph_time_offset_seconds > 0);
     assert!(app.graph_pan_drag.is_none());
+    assert!(app.context_menu.is_none());
 }
 
 #[test]
@@ -1033,6 +1034,7 @@ fn graph_right_click_without_drag_preserves_fit_all_samples() {
     assert!(app.graph_show_all_samples);
     assert_eq!(app.effective_graph_time_span_seconds(), 240);
     assert!(app.graph_pan_drag.is_none());
+    assert!(app.context_menu.is_some());
 }
 
 #[test]

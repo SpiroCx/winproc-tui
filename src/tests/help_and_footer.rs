@@ -182,7 +182,10 @@ fn help_dialog_buffer_shows_two_column_layout() {
     assert!(rendered.contains("Refresh Info tab"), "{rendered}");
 
     assert!(rendered.contains("Click panel"), "{rendered}");
-    assert!(rendered.contains("Samples auto-scroll"), "{rendered}");
+    assert!(
+        rendered.contains("Context actions for process, Graph, Samples, or endpoint"),
+        "{rendered}"
+    );
     assert!(rendered.contains("PageUp/PageDown"), "{rendered}");
     assert!(rendered.contains("Change time span"), "{rendered}");
     assert!(

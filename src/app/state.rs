@@ -1271,6 +1271,8 @@ pub(crate) struct App {
     pub(crate) details_sample_page_size: usize,
     pub(crate) samples_scrollbar_dragging: bool,
     pub(crate) samples_scrollbar_grab_offset: usize,
+    pub(crate) context_menu: Option<super::context_menu::ContextMenu>,
+    pub(crate) pending_context_menu: Option<super::context_menu::ContextMenu>,
     pub(crate) graph_pan_drag: Option<GraphPanDrag>,
     pub(crate) graph_time_span_seconds: u32,
     pub(crate) graph_time_offset_seconds: u32,
@@ -1565,6 +1567,8 @@ impl App {
             details_sample_page_size: 1,
             samples_scrollbar_dragging: false,
             samples_scrollbar_grab_offset: 0,
+            context_menu: None,
+            pending_context_menu: None,
             graph_pan_drag: None,
             graph_time_span_seconds,
             graph_time_offset_seconds: 0,
@@ -1742,7 +1746,8 @@ impl App {
     }
 
     pub(crate) fn has_workspace_overlay(&self) -> bool {
-        self.main_menu_activity.is_some()
+        self.context_menu.is_some()
+            || self.main_menu_activity.is_some()
             || self.show_help
             || self.show_column_picker
             || self.show_log_list
@@ -3248,7 +3253,6 @@ impl App {
         self.add_graph_source(source, return_focus)
     }
 
-    #[cfg(test)]
     pub(crate) fn add_or_reveal_graph_source(
         &mut self,
         source: GraphSlot,
@@ -3284,8 +3288,10 @@ impl App {
                 column,
             },
             clicked_at,
-        ) {
-            self.toggle_process_name_tracking(identity.name);
+        ) && let Some(target) = self.process_info_target_for_identity(&identity)
+            && let Err(error) = self.open_process_info_dialog(target, ProcessInfoTab::Metrics)
+        {
+            self.status = format!("Process Info failed: {error}");
         }
     }
 
@@ -4569,7 +4575,7 @@ impl App {
         self.toggle_process_name_tracking(name);
     }
 
-    fn toggle_process_name_tracking(&mut self, name: String) {
+    pub(super) fn toggle_process_name_tracking(&mut self, name: String) {
         if self.reject_tracking_list_change() {
             return;
         }
@@ -5396,7 +5402,7 @@ impl App {
         })
     }
 
-    fn process_info_target_for_identity(
+    pub(super) fn process_info_target_for_identity(
         &self,
         identity: &ProcessIdentity,
     ) -> Option<ProcessInfoDialogTarget> {
@@ -7578,6 +7584,18 @@ impl App {
         );
         if let Some(target) = &self.process_info_target {
             protected_identities.insert(target.identity.clone());
+        }
+
+        for menu in self
+            .context_menu
+            .iter()
+            .chain(self.pending_context_menu.iter())
+        {
+            for item in &menu.items {
+                if let super::context_menu::ContextAction::ProcessInfo(target, _) = &item.action {
+                    protected_identities.insert(target.identity.clone());
+                }
+            }
         }
 
         let tracked_exit_candidates = self

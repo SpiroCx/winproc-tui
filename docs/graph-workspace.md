@@ -96,3 +96,5 @@ When MEM and GPU share the available resource-panel space, visible tabs expose b
 Directional panel navigation treats GRAPHS as one workspace and Samples as a separate visible panel. Entering or leaving GRAPHS preserves its active card; card selection and shared-time panning remain independent operations.
 
 The complete GRAPHS frame indicates workspace keyboard focus using the same focus treatment as other main panels. Inner card frames identify the active Graph independently. Samples stays outside that frame. Card, plot, control, and scrollbar geometry reserves the workspace border cells and is shared by drawing and mouse input.
+
+Context menus capture the clicked Graph ID and sample timestamp without changing shared time, A/B, follow state, or fit-all state until an action is chosen. Show graph on a Processes metric adds or reveals its fixed source and focuses it; removal is a separate action. A right-button drag pans time, while a press/release without movement opens the menu. Graph and Samples actions share the same workspace state.

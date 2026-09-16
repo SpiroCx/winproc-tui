@@ -31,6 +31,7 @@ pub(crate) struct NetworkView {
     pub(crate) editing: bool,
     pub(crate) selected: usize,
     pub(crate) detail: bool,
+    pub(crate) detail_entry: Option<NetworkEndpoint>,
     pub(crate) scroll: ScrollableModalState,
 }
 
@@ -44,12 +45,16 @@ impl NetworkView {
     }
 
     pub(crate) fn selected_entry(&self) -> Option<&NetworkEndpoint> {
-        self.entries().get(self.selected).copied()
+        self.detail
+            .then_some(self.detail_entry.as_ref())
+            .flatten()
+            .or_else(|| self.entries().get(self.selected).copied())
     }
 
     pub(crate) fn reset_selection(&mut self) {
         self.selected = 0;
         self.detail = false;
+        self.detail_entry = None;
         self.scroll.reset();
     }
 }
@@ -63,7 +68,7 @@ impl App {
         }
     }
 
-    fn network_view_mut(&mut self, global: bool) -> &mut NetworkView {
+    pub(super) fn network_view_mut(&mut self, global: bool) -> &mut NetworkView {
         if global {
             &mut self.network_browser
         } else {
@@ -139,6 +144,7 @@ impl App {
         let view = self.network_view_mut(global);
         view.attempted = true;
         view.detail = false;
+        view.detail_entry = None;
         view.notice = result.as_ref().err().map(ToString::to_string);
         if result.is_ok() {
             view.pending = Some(context);
@@ -191,7 +197,7 @@ impl App {
                     view.notice = Some(error)
                 }
                 NetworkPayload::Owner(Ok(owner)) => {
-                    if !self.network_browser.visible || self.has_workspace_overlay() {
+                    if global && (!self.network_browser.visible || self.has_workspace_overlay()) {
                         continue;
                     }
                     // The worker reopens and verifies the precise native creation time before navigation.
@@ -208,9 +214,14 @@ impl App {
                         process,
                         lifecycle: ProcessLifecycle::Live,
                     };
-                    if let Err(error) =
-                        self.open_process_info_dialog(target, ProcessInfoTab::Network)
-                    {
+                    if let Err(error) = self.open_process_info_dialog(
+                        target,
+                        if global {
+                            ProcessInfoTab::Network
+                        } else {
+                            ProcessInfoTab::Metrics
+                        },
+                    ) {
                         self.network_browser.notice = Some(error.to_string());
                     }
                 }
@@ -232,16 +243,30 @@ impl App {
                 Some("Owner unavailable or unverified; refresh to try again".into());
             return;
         };
-        let context = self.next_network_context(true);
+        self.verify_network_owner(owner, true);
+    }
+
+    pub(crate) fn verify_network_owner(
+        &mut self,
+        owner: crate::model::network::NetworkOwner,
+        global: bool,
+    ) {
+        if self.activity() == AppActivity::LogView
+            || !self.network_view(global).visible
+            || self.network_view(global).pending.is_some()
+        {
+            return;
+        }
+        let context = self.next_network_context(global);
         match self
             .network_worker
             .request(NetworkRequest::Verify(context.clone(), owner))
         {
             Ok(()) => {
-                self.network_browser.pending = Some(context);
-                self.network_browser.notice = None;
+                self.network_view_mut(global).pending = Some(context);
+                self.network_view_mut(global).notice = None;
             }
-            Err(error) => self.network_browser.notice = Some(error.to_string()),
+            Err(error) => self.network_view_mut(global).notice = Some(error.to_string()),
         }
     }
 
@@ -348,6 +373,7 @@ impl App {
         match key.code {
             KeyCode::Esc if view.detail => {
                 view.detail = false;
+                view.detail_entry = None;
                 view.scroll.reset();
             }
             KeyCode::Esc => {
@@ -359,6 +385,7 @@ impl App {
             }
             KeyCode::Enter if view.detail => {
                 view.detail = false;
+                view.detail_entry = None;
                 view.scroll.reset();
             }
             KeyCode::Enter if global => self.open_network_owner(),
@@ -366,6 +393,7 @@ impl App {
                 if (global || key.code == KeyCode::Enter)
                     && (view.report.is_some() || view.notice.is_some()) =>
             {
+                view.detail_entry = view.selected_entry().cloned();
                 view.detail = true;
                 view.scroll.reset();
             }

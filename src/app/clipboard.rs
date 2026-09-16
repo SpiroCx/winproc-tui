@@ -241,7 +241,7 @@ impl SampleClipboardRow {
     }
 }
 
-fn selected_process_row_text(process: &ProcessRow, columns: &[MetricColumn]) -> String {
+pub(super) fn selected_process_row_text(process: &ProcessRow, columns: &[MetricColumn]) -> String {
     let mut fields = vec![process.pid.to_string(), process.name.clone()];
     fields.extend(
         columns
@@ -405,7 +405,10 @@ fn format_process_metric_column(process: &ProcessRow, column: MetricColumn) -> S
     }
 }
 
-fn format_graph_sample_value(value: Option<f64>, value_format: GraphValueFormat) -> String {
+pub(super) fn format_graph_sample_value(
+    value: Option<f64>,
+    value_format: GraphValueFormat,
+) -> String {
     let Some(value) = value else {
         return "--".to_string();
     };

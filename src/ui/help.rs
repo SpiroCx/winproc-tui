@@ -69,6 +69,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Menu / Shift+F10",
+        label: "Context actions for selected object; Esc or outside click closes",
+    },
+    HelpItem {
         key: "Click shortcut",
         label: "Run the displayed footer action; hover highlights its full group",
     },
@@ -576,7 +580,7 @@ const MOUSE_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Double-click Process/PID",
-        label: "Track / Untrack process (Live only)",
+        label: "Open Process Info for that process lifetime",
     },
     HelpItem {
         key: "Click Graph nav/card",
@@ -608,7 +612,7 @@ const MOUSE_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Right click",
-        label: "Samples auto-scroll",
+        label: "Context actions for process, Graph, Samples, or endpoint",
     },
 ];
 

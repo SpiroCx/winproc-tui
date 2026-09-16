@@ -1,4 +1,5 @@
 pub(crate) mod column_picker;
+pub(crate) mod context_menu;
 mod cpu_core_dialog;
 mod cpu_panel;
 pub(crate) mod details_panel;
@@ -240,6 +241,10 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
     if app.show_no_graph_metrics_warning {
         app.shortcut_map.borrow_mut().regions.clear();
         draw_no_graph_metrics_warning(frame, area, app, theme);
+    }
+    if app.context_menu.is_some() {
+        app.shortcut_map.borrow_mut().regions.clear();
+        context_menu::draw(frame, app);
     }
     if app.show_quit_confirmation {
         app.shortcut_map.borrow_mut().regions.clear();

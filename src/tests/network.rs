@@ -809,3 +809,37 @@ fn network_footer_mouse_opens_verified_owner_refreshes_and_returns() {
     click(&mut app, "Esc close");
     assert!(!app.network_browser.visible);
 }
+
+#[test]
+fn endpoint_menu_binds_owner_and_details_to_the_clicked_capture() {
+    let (mut app, requests, results) = setup();
+    app.open_network_browser();
+    let snapshot = report(&app);
+    let entry = snapshot.endpoints[0].clone();
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    let menu =
+        app.endpoint_context_menu(entry.clone(), true, ratatui::layout::Position::new(178, 58));
+    app.open_context_menu(menu.clone());
+    app.network_browser.selected = 1;
+    app.activate_context_item().unwrap();
+    let NetworkRequest::Verify(context, owner) = requests.try_recv().unwrap() else {
+        panic!("verify")
+    };
+    assert_eq!(owner.identity, entry.owner.as_ref().unwrap().identity);
+    results
+        .send(NetworkResult {
+            context,
+            payload: NetworkPayload::Owner(Err("test unavailable".into())),
+        })
+        .unwrap();
+    app.poll_network_results();
+    app.open_context_menu(menu);
+    app.context_menu.as_mut().unwrap().selected = 1;
+    app.activate_context_item().unwrap();
+    assert_eq!(
+        app.network_browser.detail_entry.as_ref().unwrap().key,
+        entry.key
+    );
+    let rendered = crate::ui::network::detail_lines(&app.network_browser, 180).join("\n");
+    assert!(rendered.contains(&entry.key.local.to_string()));
+}

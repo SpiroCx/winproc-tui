@@ -485,7 +485,12 @@ fn disclosure_mouse_region_is_distinct_from_tracking_and_uses_hover_style() {
     let name_x = glyph_x.saturating_add(2);
     app.on_mouse(left_click(name_x, glyph_y), screen);
     app.on_mouse(left_click(name_x, glyph_y), screen);
-    assert_eq!(app.watch_list, ["root.exe"]);
+    assert!(app.watch_list.is_empty());
+    assert!(app.show_process_info_dialog);
+    assert_eq!(
+        app.process_info_target.as_ref().unwrap().identity.name,
+        "root.exe"
+    );
 }
 
 #[test]

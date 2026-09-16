@@ -1,4 +1,5 @@
 mod configuration;
+mod context_menu;
 mod cpu_panel;
 mod file_users;
 mod graph_interaction;

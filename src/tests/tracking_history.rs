@@ -258,6 +258,8 @@ fn log_view_tracking_inputs_and_pending_changes_preserve_live_history() {
     let now = std::time::Instant::now();
     app.register_process_tracking_cell_click(identity.clone(), model::SortColumn::ProcessName, now);
     app.register_process_tracking_cell_click(identity, model::SortColumn::ProcessName, now);
+    assert!(app.show_process_info_dialog);
+    app.close_process_info_dialog();
 
     assert_eq!(app.watch_list, vec!["proc-0"]);
     assert_eq!(selected_process_history_sample_count(&app, "proc-0"), 191);

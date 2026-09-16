@@ -100,3 +100,5 @@ The cursor and multi-selected identity set are independent. Process Info, Files 
 In Tracked-only mode, select-all selects eligible process identities in the current list, including rows outside the viewport, without moving the cursor or scroll position. Text filtering and Tree collapse bound this list; hidden rows, Ghost Rows, and Tracked Total are excluded. Repeating select-all leaves the eligible set selected. Text input and modal dialogs retain their own key handling.
 
 Tree indentation is bounded to preserve readable process names. A compressed-depth marker retains the indication of deeper ancestry; disclosure geometry uses the same bound as rendering. Process Info remains the full-name inspection route. Parentage, filtering and collapse semantics do not depend on the displayed indentation.
+
+Process context menus capture the full process identity and displayed row when opened, and retain that identity while visible. Reordering and PID reuse cannot retarget their actions. Name/PID double-click opens Process Info; name-based tracking is an explicit context action and retains Live-only and retained-history confirmation rules.

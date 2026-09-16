@@ -436,32 +436,33 @@ fn table_line(values: &[&str; 6], columns: &[usize; 6], width: u16) -> String {
 }
 
 pub(crate) fn detail_lines(view: &NetworkView, width: u16) -> Vec<String> {
-    let mut lines = if let Some(entry) = view.selected_entry() {
-        vec![
-            format!("Protocol: {}", entry.key.protocol.label()),
-            format!("Local: {}", entry.key.local),
-            format!(
-                "Remote: {}",
-                entry
-                    .key
-                    .remote
-                    .map_or_else(|| "--".into(), |address| address.to_string())
-            ),
-            format!("State: {}", entry.state_label()),
-            format!("PID: {}", entry.key.pid),
-            format!("Process: {}", entry.process_name()),
-            format!(
-                "Owner: {}",
-                if entry.owner.is_some() {
-                    "Verified during capture"
-                } else {
-                    "Unavailable or unverified"
-                }
-            ),
-        ]
-    } else {
-        vec!["No endpoint selected.".into()]
-    };
+    let mut lines =
+        if let Some(entry) = view.detail_entry.as_ref().or_else(|| view.selected_entry()) {
+            vec![
+                format!("Protocol: {}", entry.key.protocol.label()),
+                format!("Local: {}", entry.key.local),
+                format!(
+                    "Remote: {}",
+                    entry
+                        .key
+                        .remote
+                        .map_or_else(|| "--".into(), |address| address.to_string())
+                ),
+                format!("State: {}", entry.state_label()),
+                format!("PID: {}", entry.key.pid),
+                format!("Process: {}", entry.process_name()),
+                format!(
+                    "Owner: {}",
+                    if entry.owner.is_some() {
+                        "Verified during capture"
+                    } else {
+                        "Unavailable or unverified"
+                    }
+                ),
+            ]
+        } else {
+            vec!["No endpoint selected.".into()]
+        };
     if let Some(report) = &view.report {
         lines.push(format!(
             "Capture: {} - {}",

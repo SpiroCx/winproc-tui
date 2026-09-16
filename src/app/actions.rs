@@ -52,6 +52,7 @@ impl App {
         self.shortcut_hovered = None;
         self.clear_source_cell_click();
         self.process_panel_resize_drag = None;
+        self.pending_context_menu = None;
 
         if key.code == KeyCode::F(12) {
             self.cycle_theme();
@@ -129,6 +130,19 @@ impl App {
             match key.code {
                 KeyCode::Esc | KeyCode::Enter => self.dismiss_no_graph_metrics_warning(),
                 _ => {}
+            }
+            return Ok(());
+        }
+
+        if self.context_menu.is_some() {
+            return self.context_menu_key(key);
+        }
+        if (key.code == KeyCode::Menu
+            || (key.code == KeyCode::F(10) && key.modifiers.contains(KeyModifiers::SHIFT)))
+            && !self.is_filter_editing()
+        {
+            if let Some(menu) = self.keyboard_context_menu() {
+                self.open_context_menu(menu);
             }
             return Ok(());
         }
@@ -1500,6 +1514,29 @@ impl App {
             return;
         }
 
+        if self.context_menu.is_some() && self.recording_error.is_none() {
+            self.context_menu_mouse(mouse, screen_area);
+            return;
+        }
+        if mouse.kind == MouseEventKind::Down(MouseButton::Right)
+            && let Some(menu) = self.context_menu_at(screen_area, mouse.column, mouse.row)
+        {
+            if !self.has_modal_focus()
+                && graph_area_at(self, screen_area, mouse.column, mouse.row).is_some()
+            {
+                self.pending_context_menu = Some(menu);
+                self.start_graph_pan_drag(
+                    mouse.column,
+                    mouse.row,
+                    screen_area,
+                    GraphPanDragButton::Right,
+                );
+            } else {
+                self.open_context_menu(menu);
+            }
+            return;
+        }
+
         self.header_action_hovered = if self.has_workspace_overlay() {
             None
         } else {
@@ -2183,25 +2220,14 @@ impl App {
                 self.graph_scrollbar_grab_offset = 0;
                 self.stop_graph_pan_drag(GraphPanDragButton::Left);
             }
-            MouseEventKind::Down(MouseButton::Right) => {
-                if self.start_graph_pan_drag(
-                    mouse.column,
-                    mouse.row,
-                    screen_area,
-                    GraphPanDragButton::Right,
-                ) {
-                    return;
-                }
-                if let Some((slot_index, _)) =
-                    samples_area_at(self, screen_area, mouse.column, mouse.row)
-                {
-                    self.select_graph_index(slot_index);
-                    self.focused_panel = FocusedPanel::DetailsSamples;
-                    self.enter_details_live_mode();
-                }
-            }
+            MouseEventKind::Down(MouseButton::Right) => {}
             MouseEventKind::Up(MouseButton::Right) => {
                 self.stop_graph_pan_drag(GraphPanDragButton::Right);
+                if let Some(menu) = self.pending_context_menu.take()
+                    && menu.anchor == ratatui::layout::Position::new(mouse.column, mouse.row)
+                {
+                    self.open_context_menu(menu);
+                }
             }
             MouseEventKind::ScrollUp => self.scroll_at(mouse.column, mouse.row, screen_area, true),
             MouseEventKind::ScrollDown => {
@@ -2238,10 +2264,146 @@ impl App {
                 }
             }
             MouseEventKind::Drag(MouseButton::Right) => {
+                self.pending_context_menu = None;
                 self.drag_graph_time_window(mouse.column, screen_area, GraphPanDragButton::Right);
             }
             _ => {}
         }
+    }
+
+    fn keyboard_context_menu(&self) -> Option<super::context_menu::ContextMenu> {
+        let anchor = ratatui::layout::Position::new(
+            self.last_screen_area.x + 4,
+            self.last_screen_area.y + 4,
+        );
+        if self.recording_error.is_some()
+            || self.show_recording_stop_confirmation
+            || self.show_quit_confirmation
+        {
+            return None;
+        }
+        let global = self.network_browser.visible && !self.has_workspace_overlay();
+        let process_network = self.show_process_info_dialog
+            && self.process_info_tab == crate::app::ProcessInfoTab::Network;
+        if global || process_network {
+            return self
+                .network_view(global)
+                .selected_entry()
+                .cloned()
+                .map(|entry| self.endpoint_context_menu(entry, global, anchor));
+        }
+        if self.has_modal_focus() {
+            return None;
+        }
+        match self.focused_panel {
+            FocusedPanel::Processes => {
+                let identity = self
+                    .selected_visible_process()
+                    .map(crate::model::ProcessIdentity::from_row)?;
+                Some(self.process_context_menu(
+                    self.process_info_target_for_identity(&identity)?,
+                    self.selected_process_graph_source(),
+                    anchor,
+                ))
+            }
+            FocusedPanel::DetailsGraph | FocusedPanel::DetailsSamples => self.graph_context_menu(
+                self.active_graph_id?,
+                self.active_graph_slot()
+                    .and_then(|slot| self.graph_slot_sample_at(slot, self.details_sample_selected)),
+                anchor,
+            ),
+            _ => None,
+        }
+    }
+
+    fn context_menu_at(
+        &self,
+        screen: Rect,
+        x: u16,
+        y: u16,
+    ) -> Option<super::context_menu::ContextMenu> {
+        let anchor = ratatui::layout::Position::new(x, y);
+        if self.recording_error.is_some()
+            || self.show_recording_stop_confirmation
+            || self.show_quit_confirmation
+        {
+            return None;
+        }
+        let global = self.network_browser.visible && !self.has_workspace_overlay();
+        let process_network = self.show_process_info_dialog
+            && self.process_info_tab == crate::app::ProcessInfoTab::Network;
+        if global || process_network {
+            let view = self.network_view(global);
+            let area = crate::ui::network::active_content_area(screen, global);
+            let rows = crate::ui::network::content_layout(area).rows;
+            if view.detail || !rows.contains(anchor) {
+                return None;
+            }
+            let entry = view
+                .entries()
+                .get(view.scroll.offset + (y - rows.y) as usize)
+                .copied()?
+                .clone();
+            return Some(self.endpoint_context_menu(entry, global, anchor));
+        }
+        if self.has_modal_focus() {
+            return None;
+        }
+        let process = main_panel_areas_for_app(screen, self).processes;
+        if process.area.contains(anchor)
+            && let Some(row) = process_row_index_at(process, y, self.process_table_state.offset())
+            && let Some(identity) = self.visible_process_identity_at(row)
+        {
+            return Some(self.process_context_menu(
+                self.process_info_target_for_identity(&identity)?,
+                process_graph_source_at(self, screen, x, y),
+                anchor,
+            ));
+        }
+        if let Some((index, area)) = samples_area_at(self, screen, x, y) {
+            let rows = details_sample_page_size_for_samples_area(
+                area,
+                details_samples_summary_visibility(self.active_ab_comparison()),
+                self.active_graph_slot_count() <= 1,
+            );
+            let state = self.details_sample_view_state_for_slot(index, rows)?;
+            let slot = self.graph_slot(index)?;
+            let sample = sample_row_index_at(
+                area,
+                y,
+                state.offset,
+                self.graph_slot_sample_count(slot),
+                rows,
+            )
+            .and_then(|i| self.graph_slot_sample_at(slot, i));
+            return self.graph_context_menu(self.graph_entry(index)?.id, sample, anchor);
+        }
+        if let Some((index, id)) = graph_card_at(self, screen, x, y) {
+            let slot = self.graph_slot(index)?;
+            let sample = if let Some((_, area)) = graph_chart_area_at(self, screen, x, y) {
+                let width = i64::from(area.width.saturating_sub(1).max(1));
+                let age = i64::from(self.effective_graph_time_offset_seconds())
+                    + i64::from(self.effective_graph_time_span_seconds())
+                        * (width - i64::from(x.saturating_sub(area.x)).min(width))
+                        / width;
+                self.graph_time_reference_at().and_then(|reference| {
+                    self.graph_slot_samples(slot)
+                        .into_iter()
+                        .min_by_key(|sample| {
+                            (reference
+                                .signed_duration_since(sample.captured_at)
+                                .num_seconds()
+                                .max(0)
+                                - age)
+                                .abs()
+                        })
+                })
+            } else {
+                self.graph_slot_sample_at(slot, self.details_sample_selected)
+            };
+            return self.graph_context_menu(id, sample, anchor);
+        }
+        None
     }
 
     fn adjust_process_panel_height(&mut self, delta: i32) {

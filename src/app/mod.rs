@@ -1,5 +1,6 @@
 pub(crate) mod actions;
 pub(crate) mod clipboard;
+pub(crate) mod context_menu;
 pub(crate) mod export;
 pub(crate) mod file_users;
 pub(crate) mod log_format;
@@ -236,6 +237,7 @@ pub(crate) fn handle_mouse_event(
         app.process_view_mode_hovered,
         app.process_tracked_only_hovered,
         app.shortcut_hovered,
+        app.context_menu.as_ref().and_then(|menu| menu.hovered),
         app.process_disclosure_hovered.clone(),
         app.main_menu_hovered,
         app.header_menu_hovered,
@@ -251,6 +253,7 @@ pub(crate) fn handle_mouse_event(
                 app.process_view_mode_hovered,
                 app.process_tracked_only_hovered,
                 app.shortcut_hovered,
+                app.context_menu.as_ref().and_then(|menu| menu.hovered),
                 app.process_disclosure_hovered.clone(),
                 app.main_menu_hovered,
                 app.header_menu_hovered,
