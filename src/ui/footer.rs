@@ -78,8 +78,16 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
                 ("s", "Sort"),
                 ("g", "Graphs"),
                 ("Ctrl+I", "Jump"),
-                ("Enter/f", "Info/Files"),
-                ("d", "Kill"),
+                ("Enter/f", "Row info/files"),
+                (
+                    "d",
+                    if app.selected_process_identities.is_empty() {
+                        "Kill row"
+                    } else {
+                        "Kill selected"
+                    },
+                ),
+                ("Ctrl+C", "Copy row"),
                 ("Ctrl+F", "Filter"),
             ]
         }
@@ -169,6 +177,7 @@ fn context_shortcuts(app: &App, theme: Theme, width: usize) -> Vec<Span<'static>
         Some("Tab"),
         primary_key,
         Some("Ctrl+B"),
+        (!app.selected_process_identities.is_empty()).then_some("d"),
         Some("Ctrl+F"),
         Some("Enter/f"),
         Some("←/→"),

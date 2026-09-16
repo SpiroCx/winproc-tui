@@ -1454,3 +1454,27 @@ fn inspection_filter_editing_preserves_dialog_and_uses_shared_keys() {
         assert!(!app.process_info_filter_editing);
     }
 }
+
+#[test]
+fn multi_selection_markers_survive_cursor_movement_and_are_pruned_by_filter() {
+    let mut app = make_test_app(5, 10);
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT))
+        .unwrap();
+    let selected = app.selected_process_identities.clone();
+    assert_eq!(selected.len(), 2);
+    app.on_key(KeyEvent::new(KeyCode::Down, KeyModifiers::CONTROL))
+        .unwrap();
+    let rendered = super::support::render_app_to_text(&app, 120, 60);
+    assert!(rendered.contains("2 selected (*)"), "{rendered}");
+    for identity in &selected {
+        assert!(rendered.contains(&format!("*{}", identity.pid)));
+    }
+    app.on_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE))
+        .unwrap();
+    assert_eq!(app.process_kill_targets.len(), 2);
+    app.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE))
+        .unwrap();
+    app.begin_filter_edit();
+    app.push_filter_char('~');
+    assert!(app.selected_process_identities.is_empty());
+}

@@ -159,7 +159,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
         rendered.contains("Save the active Investigation Profile"),
         "{rendered}"
     );
-    assert!(rendered.contains("Copy selected row"), "{rendered}");
+    assert!(rendered.contains("Copy cursor row"), "{rendered}");
     assert!(!rendered.contains("Open Settings"), "{rendered}");
 
     assert!(rendered.contains("Select row range"), "{rendered}");
@@ -367,7 +367,7 @@ fn footer_shows_process_context_on_one_row() {
     let mut app = make_test_app(3, 10);
     app.status = "Copied row: proc-0".to_string();
 
-    let rendered = render_app_to_text(&app, 260, 30);
+    let rendered = render_app_to_text(&app, 500, 30);
 
     assert!(rendered.contains("PROCESSES"), "{rendered}");
     assert!(rendered.contains("Ctrl+P Pause"), "{rendered}");
@@ -381,7 +381,7 @@ fn footer_shows_process_context_on_one_row() {
     assert!(rendered.contains("Ctrl+I Jump"), "{rendered}");
     assert!(!rendered.contains("Shift+←/→ Move column"), "{rendered}");
     assert!(rendered.contains("Space Graph"), "{rendered}");
-    assert!(rendered.contains("Enter/f Info/Files"), "{rendered}");
+    assert!(rendered.contains("Enter/f Row info/files"), "{rendered}");
     assert!(rendered.contains("t Track name"), "{rendered}");
     assert!(rendered.contains("Shift+T Tracked-only"), "{rendered}");
     assert!(rendered.contains("d Kill"), "{rendered}");
@@ -399,13 +399,13 @@ fn footer_shows_process_context_on_one_row() {
 
     app.on_key(KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE))
         .unwrap();
-    let tree = render_app_to_text(&app, 260, 30);
+    let tree = render_app_to_text(&app, 500, 30);
     assert!(tree.contains("v Flat/Tree"), "{tree}");
     assert!(tree.contains("e Expand/Collapse"), "{tree}");
 
     app.filter_text = "proc".to_string();
     app.rebuild_visible_process_cache();
-    let filtered_tree = render_app_to_text(&app, 260, 30);
+    let filtered_tree = render_app_to_text(&app, 500, 30);
     assert!(filtered_tree.contains("v Flat/Tree"), "{filtered_tree}");
     assert!(
         !filtered_tree.contains("e Expand/Collapse"),
@@ -680,7 +680,7 @@ fn investigation_actions_fit_at_120_columns() {
     for (panel, expected) in [
         (
             FocusedPanel::Processes,
-            vec!["Space Graph", "Ctrl+F Filter", "Enter/f Info/Files"],
+            vec!["Space Graph", "Ctrl+F Filter", "Enter/f Row info/files"],
         ),
         (
             FocusedPanel::DetailsGraph,

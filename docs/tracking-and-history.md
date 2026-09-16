@@ -92,3 +92,7 @@ Starting a Recording copies the working Tracking List into session-owned scope. 
 Opening a Profile also confirms before replacing unsaved tracked-name changes, including reopening the active Profile. The same confirmation describes any retained-history removal; cancellation preserves the list, binding, and histories. Equivalent case-insensitive name sets do not prompt.
 
 Tracking action feedback names its image-name scope across matching PIDs. Profile creation and startup guidance state that saved tracking intent is separate from shared presentation preferences and session-only Graph registrations. The empty profile browser provides a direct Save As route for the current names.
+
+### Cursor and multi-selection
+
+The cursor and multi-selected identity set are independent. Process Info, Files and clipboard copy use the cursor row. Kill uses the selected set when nonempty, otherwise the cursor, and always requires confirmation of fixed identities. A marker before each selected PID and a persistent count distinguish selection without relying on color. Filtering, collapse and refresh prune hidden or exited selections under the existing identity rules.

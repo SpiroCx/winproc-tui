@@ -451,7 +451,11 @@ fn process_table_row(
     let mut cells = vec![
         tracked_cell(row, theme),
         process_fixed_cell(
-            process.pid.to_string(),
+            if row.multi_selected {
+                format!("*{}", process.pid)
+            } else {
+                process.pid.to_string()
+            },
             Alignment::Right,
             selected_table_column_index == 0,
             row_selected && selected_table_column_index == 0,
@@ -939,7 +943,14 @@ fn process_table_state_segments(app: &App) -> Vec<ProcessTitleSegment> {
     let mut segments = vec![
         ProcessTitleSegment {
             kind: ProcessTitleSegmentKind::VisibleCount,
-            label: visible_label,
+            label: if app.selected_process_identities.is_empty() {
+                visible_label
+            } else {
+                format!(
+                    "{visible_label} · {} selected (*)",
+                    app.selected_process_identities.len()
+                )
+            },
         },
         ProcessTitleSegment {
             kind: ProcessTitleSegmentKind::ViewMode,

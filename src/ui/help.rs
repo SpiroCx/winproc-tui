@@ -106,7 +106,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Ctrl+C",
-        label: "Copy selected row / System Info",
+        label: "Copy cursor row / System Info",
     },
     HelpItem {
         key: "Ctrl+L",
@@ -123,6 +123,14 @@ const GLOBAL_ROWS: &[HelpItem] = &[
 ];
 
 const PROCESSES_ROWS: &[HelpItem] = &[
+    HelpItem {
+        key: "* before PID",
+        label: "Multi-selected row; count stays in Processes title",
+    },
+    HelpItem {
+        key: "Enter / Ctrl+C / d",
+        label: "Inspect cursor / copy cursor / kill selected set (or cursor)",
+    },
     HelpItem {
         key: "Ctrl+F (Info)",
         label: "Edit Files / DLL / Environment / Network filter",
