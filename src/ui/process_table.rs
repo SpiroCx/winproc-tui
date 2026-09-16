@@ -1042,6 +1042,15 @@ fn process_view_mode_label(app: &App) -> String {
 }
 
 fn process_tracked_only_title_spans(app: &App, theme: Theme) -> Vec<Span<'static>> {
+    if app.process_tracked_only_hovered {
+        return vec![Span::styled(
+            process_tracked_only_label(app),
+            Style::default()
+                .fg(theme.text)
+                .bg(theme.focus_surface)
+                .add_modifier(Modifier::BOLD),
+        )];
+    }
     if app.watch_enabled {
         let plain = |color| Style::default().fg(color).remove_modifier(Modifier::BOLD);
         return vec![

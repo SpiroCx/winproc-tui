@@ -135,6 +135,12 @@ pub(crate) fn draw_browser(frame: &mut ratatui::Frame<'_>, screen: Rect, app: &A
         )),
         Line::from(shortcut_line(&secondary, layout.footer.width, theme)),
     ];
+    crate::ui::footer::register_shortcut_text(
+        app,
+        layout.footer,
+        &ratatui::text::Text::from(lines.clone()),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(lines).style(Style::default().bg(theme.panel_alt)),
         layout.footer,

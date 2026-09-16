@@ -128,6 +128,10 @@ use widgets::modal_scrim::{ModalScrim, ModalScrimStrength};
 
 pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
     let area = frame.area();
+    *app.shortcut_map.borrow_mut() = footer::ShortcutMap {
+        screen: area,
+        regions: Vec::new(),
+    };
     let theme = app.theme();
 
     frame.render_widget(
@@ -156,81 +160,104 @@ pub(crate) fn draw(frame: &mut ratatui::Frame<'_>, app: &App) {
     }
 
     if app.is_main_menu_open() {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_main_menu(frame, area, app, theme);
     }
     if app.show_column_picker {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_column_picker(frame, area, app, theme);
     }
     if app.show_log_list {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_log_list(frame, area, app, theme);
     }
     if app.show_log_dir_dialog {
         if app.show_log_list {
             frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
         }
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_log_dir_dialog(frame, area, app, theme);
     }
     if app.show_process_info_dialog {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_process_info_dialog(frame, area, app, theme);
     }
     if app.show_cpu_core_dialog {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_cpu_core_dialog(frame, area, app, theme);
     }
     if app.show_system_info_dialog {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_system_info_dialog(frame, area, app, theme);
     }
     if app.graph_reorder_dialog.is_some() {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_graph_reorder_dialog(frame, area, app, theme);
     }
     if app.show_recording_no_tracked_warning {
-        draw_recording_no_tracked_warning(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_recording_no_tracked_warning(frame, area, app, theme);
     }
     if app.show_recording_path_dialog {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_recording_path_dialog(frame, area, app, theme);
     }
     if app.show_recording_overwrite_confirmation {
         if app.show_recording_path_dialog {
             frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
         }
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_recording_overwrite_confirm(frame, area, app, theme);
     }
     if app.show_recording_tracking_fixed {
-        draw_recording_tracking_fixed(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_recording_tracking_fixed(frame, area, app, theme);
     }
     if app.show_recording_stop_confirmation {
-        draw_recording_stop_confirm(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_recording_stop_confirm(frame, area, app, theme);
     }
     if app.show_tracked_remove_confirmation {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_tracked_remove_confirm(frame, area, app, theme);
     }
     if app.show_process_kill_confirmation {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_process_kill_confirm(frame, area, app, theme);
     }
     if app.investigation_profiles_dialog.is_some() {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_investigation_profiles(frame, area, app, theme);
     }
     if app.show_display_area_warning {
-        draw_display_area_warning(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_display_area_warning(frame, area, app, theme);
     }
     if app.show_metric_column_warning {
-        draw_metric_column_warning(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_metric_column_warning(frame, area, app, theme);
     }
     if app.show_no_graph_metrics_warning {
-        draw_no_graph_metrics_warning(frame, area, theme);
+        app.shortcut_map.borrow_mut().regions.clear();
+        draw_no_graph_metrics_warning(frame, area, app, theme);
     }
     if app.show_quit_confirmation {
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_quit_confirm(frame, area, app, theme);
     }
     if app.recording_error.is_some() {
         if app.show_recording_path_dialog {
             frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
         }
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_recording_error(frame, area, app, theme);
     }
     if app.show_help {
         frame.render_widget(ModalScrim::new(theme, ModalScrimStrength::Dialog), area);
+        app.shortcut_map.borrow_mut().regions.clear();
         draw_help(frame, area, app, theme);
     }
+    footer::draw_shortcut_hover(frame, app);
 }
 
 fn modal_scrim_strength(app: &App) -> Option<ModalScrimStrength> {
@@ -279,6 +306,7 @@ fn draw_body(
 fn draw_display_area_warning(
     frame: &mut ratatui::Frame<'_>,
     area: ratatui::layout::Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup = widgets::confirm_dialog::centered_dialog_rect(area, 38, 5);
@@ -291,6 +319,7 @@ fn draw_display_area_warning(
             theme,
         )),
         theme,
+        (app, popup),
     );
     frame.render_widget(dialog, popup);
 }
@@ -298,6 +327,7 @@ fn draw_display_area_warning(
 fn draw_metric_column_warning(
     frame: &mut ratatui::Frame<'_>,
     area: ratatui::layout::Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup = widgets::confirm_dialog::centered_dialog_rect(area, 58, 5);
@@ -310,6 +340,7 @@ fn draw_metric_column_warning(
             theme,
         )),
         theme,
+        (app, popup),
     );
     frame.render_widget(dialog, popup);
 }
@@ -317,6 +348,7 @@ fn draw_metric_column_warning(
 fn draw_no_graph_metrics_warning(
     frame: &mut ratatui::Frame<'_>,
     area: ratatui::layout::Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup = widgets::confirm_dialog::centered_dialog_rect(area, 82, 6);
@@ -330,6 +362,7 @@ fn draw_no_graph_metrics_warning(
             theme,
         )),
         theme,
+        (app, popup),
     );
     frame.render_widget(dialog, popup);
 }

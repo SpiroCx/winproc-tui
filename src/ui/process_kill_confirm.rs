@@ -51,6 +51,15 @@ pub(crate) fn draw_process_kill_confirm(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        popup.inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        Alignment::Center,
+    );
     let dialog = Paragraph::new(lines)
         .block(confirm_dialog::warning_block("CONFIRM", theme))
         .alignment(Alignment::Center);

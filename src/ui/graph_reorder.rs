@@ -72,6 +72,12 @@ pub(crate) fn draw_graph_reorder_dialog(
         theme,
     );
     if !layout.footer.is_empty() {
+        crate::ui::footer::register_shortcut_text(
+            app,
+            layout.footer,
+            &ratatui::text::Text::from(Line::from(shortcut_spans(&SHORTCUT_ITEMS, theme))),
+            ratatui::layout::Alignment::Left,
+        );
         frame.render_widget(
             Paragraph::new(Line::from(shortcut_spans(&SHORTCUT_ITEMS, theme))),
             layout.footer,

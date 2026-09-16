@@ -48,6 +48,8 @@ impl App {
         if key.kind == KeyEventKind::Release {
             return Ok(());
         }
+        self.shortcut_map.borrow_mut().regions.clear();
+        self.shortcut_hovered = None;
         self.clear_source_cell_click();
         self.process_panel_resize_drag = None;
 
@@ -1457,6 +1459,29 @@ impl App {
     }
 
     pub(crate) fn on_mouse(&mut self, mouse: MouseEvent, screen_area: Rect) {
+        let shortcut = {
+            let map = self.shortcut_map.borrow();
+            (map.screen == screen_area)
+                .then(|| {
+                    map.regions
+                        .iter()
+                        .copied()
+                        .find(|region| contains_point(region.area, mouse.column, mouse.row))
+                })
+                .flatten()
+        };
+        self.shortcut_hovered = shortcut.map(|region| region.area);
+        if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+            && let Some(shortcut) = shortcut
+        {
+            if let Err(error) = self.on_key(shortcut.key) {
+                self.status = format!("Action failed: {error}");
+            }
+            return;
+        }
+        if mouse.kind != MouseEventKind::Moved {
+            self.shortcut_map.borrow_mut().regions.clear();
+        }
         if self.show_help {
             match mouse.kind {
                 MouseEventKind::Down(MouseButton::Left) => {
@@ -1544,6 +1569,7 @@ impl App {
             self.process_panel_resize_hovered = false;
             self.process_panel_resize_drag = None;
             self.process_view_mode_hovered = false;
+            self.process_tracked_only_hovered = false;
             self.process_disclosure_hovered = None;
             self.header_menu_hovered = false;
         } else {
@@ -1559,6 +1585,9 @@ impl App {
                     .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
             self.process_view_mode_hovered =
                 process_view_mode_control_area_for_screen(screen_area, self)
+                    .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
+            self.process_tracked_only_hovered =
+                process_tracked_only_control_area_for_screen(screen_area, self)
                     .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
             self.process_disclosure_hovered = self
                 .process_tree_expansion_available()
@@ -1607,6 +1636,16 @@ impl App {
         }
 
         if self.is_main_menu_open() {
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && !contains_point(
+                    crate::ui::main_menu::main_menu_area(screen_area, self),
+                    mouse.column,
+                    mouse.row,
+                )
+            {
+                self.close_main_menu();
+                return;
+            }
             let hovered = main_menu_index_at(screen_area, self, mouse.column, mouse.row);
             self.set_main_menu_hovered(hovered);
             if mouse.kind == MouseEventKind::Down(MouseButton::Left)

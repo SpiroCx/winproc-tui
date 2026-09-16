@@ -25,7 +25,20 @@ pub(crate) fn warning_dialog<'a>(
     detail: &'static str,
     shortcuts: Line<'a>,
     theme: Theme,
+    hit: (&crate::App, Rect),
 ) -> Paragraph<'a> {
+    let content = hit.1.inner(ratatui::layout::Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+    if content.height > 3 {
+        crate::ui::footer::register_shortcut_text(
+            hit.0,
+            Rect::new(content.x, content.y + 3, content.width, 1),
+            &Text::from(shortcuts.clone()),
+            Alignment::Center,
+        );
+    }
     let lines = Text::from(vec![
         Line::from(Span::styled(message, Style::default().fg(theme.text))),
         Line::from(Span::styled(detail, Style::default().fg(theme.text))),
@@ -43,7 +56,20 @@ pub(crate) fn warning_message_dialog<'a>(
     message: &'static str,
     shortcuts: Line<'a>,
     theme: Theme,
+    hit: (&crate::App, Rect),
 ) -> Paragraph<'a> {
+    let content = hit.1.inner(ratatui::layout::Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+    if content.height > 2 {
+        crate::ui::footer::register_shortcut_text(
+            hit.0,
+            Rect::new(content.x, content.y + 2, content.width, 1),
+            &Text::from(shortcuts.clone()),
+            Alignment::Center,
+        );
+    }
     let lines = Text::from(vec![
         Line::from(Span::styled(message, Style::default().fg(theme.text))),
         Line::from(""),

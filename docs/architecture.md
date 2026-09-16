@@ -148,6 +148,8 @@ The header exposes investigation views and compact purpose-based navigation into
 
 Drawing and hit testing derive regions from shared layout helpers. Semantic interaction state stores identities or sources rather than screen coordinates, so scroll, resize, and filtering cannot retarget an action accidentally.
 
+Visible shortcut groups register their complete rendered geometry and equivalent key event in a transient input map. Each overlay replaces the map for the layer underneath; input consumes it until the next draw, and a changed terminal size invalidates it. Pointer hover changes only emphasis, while an explicit click uses the same command handling and confirmation rules as the keyboard. Ordinary menus dismiss on their trigger or an outside click.
+
 The UI module renders state and exposes geometry; it does not collect metrics or own histories. Exact keys, colors, emphasis, widths, marker shapes, focus order, and drawing positions remain in implementation and rendering tests.
 
 ## 7. Invariants and Tests

@@ -112,6 +112,17 @@ pub(crate) fn draw_log_list(frame: &mut ratatui::Frame<'_>, area: Rect, app: &Ap
         );
     }
     if !layout.footer.is_empty() {
+        crate::ui::footer::register_shortcut_text(
+            app,
+            Rect::new(
+                layout.footer.x,
+                layout.footer.bottom().saturating_sub(1),
+                layout.footer.width,
+                1,
+            ),
+            &ratatui::text::Text::from(Line::from(log_list_shortcut_spans(theme))),
+            ratatui::layout::Alignment::Left,
+        );
         frame.render_widget(
             Paragraph::new(Line::from(log_list_shortcut_spans(theme))).alignment(Alignment::Left),
             Rect::new(
@@ -167,6 +178,24 @@ pub(crate) fn draw_log_dir_dialog(
             ),
         );
     }
+    crate::ui::footer::register_shortcut_text(
+        app,
+        Rect::new(
+            content.x,
+            content.bottom().saturating_sub(1),
+            content.width,
+            1,
+        ),
+        &ratatui::text::Text::from(Line::from(shortcut_spans(
+            &[
+                ("Enter", "apply"),
+                ("Esc", "cancel"),
+                ("Ctrl+Space", "complete"),
+            ],
+            theme,
+        ))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(
             &[

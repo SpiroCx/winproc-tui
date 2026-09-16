@@ -143,6 +143,26 @@ pub(crate) fn draw_recording_path_dialog(
         ])),
         Rect::new(content.x, content.y.saturating_add(8), content.width, 1),
     );
+    crate::ui::footer::register_shortcut_text(
+        app,
+        Rect::new(
+            content.x,
+            content.bottom().saturating_sub(1),
+            content.width,
+            1,
+        ),
+        &ratatui::text::Text::from(shortcut_line(
+            &[
+                ("Enter", "start"),
+                ("Esc", "cancel"),
+                ("Tab", "focus"),
+                ("←/→", "value"),
+                ("Ctrl+Space", "complete"),
+            ],
+            theme,
+        )),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(shortcut_line(
             &[
@@ -197,6 +217,7 @@ fn recording_interval_line(app: &App, theme: Theme) -> Line<'static> {
 pub(crate) fn draw_recording_tracking_fixed(
     frame: &mut ratatui::Frame<'_>,
     area: Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup =
@@ -215,6 +236,15 @@ pub(crate) fn draw_recording_tracking_fixed(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        (popup).inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        ratatui::layout::Alignment::Center,
+    );
     frame.render_widget(
         Paragraph::new(lines)
             .block(recording_block("RECORDING", theme))
@@ -226,6 +256,7 @@ pub(crate) fn draw_recording_tracking_fixed(
 pub(crate) fn draw_recording_stop_confirm(
     frame: &mut ratatui::Frame<'_>,
     area: Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup =
@@ -248,6 +279,15 @@ pub(crate) fn draw_recording_stop_confirm(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        (popup).inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        ratatui::layout::Alignment::Center,
+    );
     frame.render_widget(
         Paragraph::new(lines)
             .block(confirm_dialog::warning_block("STOP RECORDING", theme))
@@ -291,6 +331,15 @@ pub(crate) fn draw_recording_error(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        (popup).inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        ratatui::layout::Alignment::Center,
+    );
     frame.render_widget(
         Paragraph::new(lines)
             .block(recording_error_block(theme))
@@ -371,6 +420,15 @@ pub(crate) fn draw_recording_overwrite_confirm(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        popup.inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        Alignment::Center,
+    );
     let dialog = Paragraph::new(lines)
         .block(confirm_dialog::warning_block("CONFIRM", theme))
         .alignment(Alignment::Center);
@@ -380,6 +438,7 @@ pub(crate) fn draw_recording_overwrite_confirm(
 pub(crate) fn draw_recording_no_tracked_warning(
     frame: &mut ratatui::Frame<'_>,
     area: Rect,
+    app: &App,
     theme: Theme,
 ) {
     let popup = confirm_dialog::centered_dialog_rect(
@@ -402,6 +461,15 @@ pub(crate) fn draw_recording_no_tracked_warning(
     ]);
 
     frame.render_widget(Clear, popup);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        popup.inner(ratatui::layout::Margin {
+            horizontal: 1,
+            vertical: 1,
+        }),
+        &lines,
+        Alignment::Center,
+    );
     let dialog = Paragraph::new(lines)
         .block(confirm_dialog::warning_block("WARNING", theme))
         .alignment(Alignment::Center);

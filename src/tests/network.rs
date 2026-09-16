@@ -772,3 +772,40 @@ fn hidden_network_capture_finishes_without_opening_an_inspector() {
     let wide = render_app_to_text(&app, 240, 60);
     assert!(wide.contains("Protocol: TCP4"), "{wide}");
 }
+
+#[test]
+fn network_footer_mouse_opens_verified_owner_refreshes_and_returns() {
+    let (mut app, requests, results) = setup();
+    let screen = Rect::new(0, 0, 180, 60);
+    let click = |app: &mut crate::App, label: &str| {
+        let buffer = super::support::render_app_to_buffer(app, 180, 60);
+        let (x, y) = super::support::find_text_position(&buffer, label).unwrap();
+        app.on_mouse(
+            super::support::left_click(x + label.len() as u16 - 1, y),
+            screen,
+        );
+    };
+    app.open_network_browser();
+    let snapshot = report(&app);
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    click(&mut app, "r refresh");
+    let snapshot = report(&app);
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    click(&mut app, "Enter info");
+    let NetworkRequest::Verify(context, owner) = requests.try_recv().unwrap() else {
+        panic!("verify")
+    };
+    results
+        .send(NetworkResult {
+            context,
+            payload: NetworkPayload::Owner(Ok(owner)),
+        })
+        .unwrap();
+    assert!(app.poll_network_results());
+    assert!(app.show_process_info_dialog);
+    click(&mut app, "Esc close");
+    assert!(!app.show_process_info_dialog);
+    assert!(app.network_browser.visible);
+    click(&mut app, "Esc close");
+    assert!(!app.network_browser.visible);
+}

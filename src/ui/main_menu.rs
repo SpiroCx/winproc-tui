@@ -54,6 +54,12 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
         .collect::<Vec<_>>();
 
     let layout = main_menu_modal(app).render(frame, area, Text::from(lines), 0, false, theme);
+    crate::ui::footer::register_shortcut_text(
+        app,
+        layout.footer,
+        &ratatui::text::Text::from(Line::from(super::footer::shortcut_spans(MENU_KEYS, theme))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         ratatui::widgets::Paragraph::new(Line::from(super::footer::shortcut_spans(
             MENU_KEYS, theme,
@@ -71,9 +77,8 @@ pub(crate) fn main_menu_index_at(area: Rect, app: &App, x: u16, y: u16) -> Optio
     (index < app.main_menu_rows().len()).then_some(index)
 }
 
-#[cfg(test)]
 pub(crate) fn main_menu_area(area: Rect, app: &App) -> Rect {
-    main_menu_modal(app).area(area)
+    main_menu_modal(app).layout(area).area
 }
 
 #[cfg(test)]

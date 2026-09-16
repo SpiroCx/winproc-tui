@@ -776,3 +776,122 @@ fn footer_advertises_ctrl_a_only_for_tracked_only_processes() {
         );
     }
 }
+
+fn click_visible_shortcut(app: &mut crate::App, text: &str) {
+    let screen = Rect::new(0, 0, 180, 60);
+    let buffer = render_app_to_buffer(app, 180, 60);
+    let (x, y) = find_text_position(&buffer, text).unwrap_or_else(|| panic!("missing {text}"));
+    assert!(
+        app.shortcut_map.borrow().regions.iter().any(|region| region
+            .area
+            .contains(ratatui::layout::Position::new(x + text.len() as u16 - 1, y))),
+        "{text} at {x},{y}: {:?}",
+        app.shortcut_map.borrow().regions
+    );
+    // Click the action label at the end, not just the key.
+    app.on_mouse(
+        super::support::left_click(x + text.len() as u16 - 1, y),
+        screen,
+    );
+}
+
+#[test]
+fn visible_footer_actions_complete_mouse_dialog_workflows() {
+    let mut app = make_test_app(3, 10);
+    click_visible_shortcut(&mut app, "F1/? Help");
+    assert!(app.show_help);
+    click_visible_shortcut(&mut app, "Esc/Enter/F1/? Close");
+    assert!(!app.show_help);
+    let screen = Rect::new(0, 0, 180, 60);
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (column, row) = find_text_position(&buffer, "PID").unwrap();
+    app.on_mouse(
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Right),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        },
+        screen,
+    );
+    assert!(app.show_column_picker);
+    click_visible_shortcut(&mut app, "Enter/Esc close");
+    assert!(!app.show_column_picker);
+    click_visible_shortcut(&mut app, "Enter/f Row info/files");
+    assert!(app.show_process_info_dialog);
+    click_visible_shortcut(&mut app, "Esc close");
+    assert!(!app.show_process_info_dialog);
+    app.request_quit_confirmation();
+    render_app_to_buffer(&app, 180, 60);
+    app.on_mouse(
+        super::support::left_click(179, 59),
+        Rect::new(0, 0, 180, 60),
+    );
+    assert!(app.show_quit_confirmation);
+    assert!(!app.should_quit);
+    click_visible_shortcut(&mut app, "Esc Cancel");
+    assert!(!app.show_quit_confirmation);
+    assert!(!app.should_quit);
+}
+
+#[test]
+fn menus_toggle_and_shortcut_hover_redraws_without_click_through() {
+    use ratatui::style::Modifier;
+    let mut app = make_test_app(3, 10);
+    let screen = Rect::new(0, 0, 180, 60);
+    app.on_mouse(super::support::left_click(2, 0), screen);
+    assert!(app.is_main_menu_open());
+    app.on_mouse(super::support::left_click(2, 0), screen);
+    assert!(!app.is_main_menu_open());
+    app.open_main_menu();
+    app.on_mouse(super::support::left_click(179, 30), screen);
+    assert!(!app.is_main_menu_open());
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    let (x, y) = find_text_position(&buffer, "F1/? Help").unwrap();
+    assert!(
+        crate::app::handle_mouse_event(&mut app, super::support::mouse_move(x + 7, y), screen)
+            .dirty
+    );
+    let buffer = render_app_to_buffer(&app, 180, 60);
+    assert_eq!(buffer[(x + 7, y)].bg, app.theme().focus_surface);
+    assert!(buffer[(x + 7, y)].modifier.contains(Modifier::BOLD));
+    assert!(
+        crate::app::handle_mouse_event(&mut app, super::support::mouse_move(179, 30), screen).dirty
+    );
+    app.open_help();
+    render_app_to_buffer(&app, 180, 60);
+    app.on_mouse(super::support::left_click(x + 7, y), screen);
+    assert!(app.show_help);
+    assert!(!app.is_main_menu_open());
+}
+
+#[test]
+fn confirmation_footer_clicks_preserve_recording_stop_semantics() {
+    let mut app = make_test_app(1, 10);
+    app.show_recording_stop_confirmation = true;
+    render_app_to_buffer(&app, 180, 60);
+    let keys = app
+        .shortcut_map
+        .borrow()
+        .regions
+        .iter()
+        .map(|r| r.key.code)
+        .collect::<Vec<_>>();
+    assert_eq!(keys, vec![KeyCode::Enter, KeyCode::Char('y')]);
+    click_visible_shortcut(&mut app, "Enter/Esc/n Continue");
+    assert!(!app.show_recording_stop_confirmation);
+    app.show_recording_path_dialog = true;
+    app.show_recording_overwrite_confirmation = true;
+    render_app_to_buffer(&app, 180, 60);
+    assert_eq!(
+        app.shortcut_map
+            .borrow()
+            .regions
+            .iter()
+            .map(|r| r.key.code)
+            .collect::<Vec<_>>(),
+        keys
+    );
+    click_visible_shortcut(&mut app, "Enter/Esc/n Cancel");
+    assert!(!app.show_recording_overwrite_confirmation);
+}

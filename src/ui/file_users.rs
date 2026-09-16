@@ -446,6 +446,12 @@ pub(crate) fn draw_browser(frame: &mut ratatui::Frame<'_>, screen: Rect, app: &A
             theme,
         )
     };
+    crate::ui::footer::register_shortcut_text(
+        app,
+        layout.footer,
+        &ratatui::text::Text::from(vec![Line::from(first.clone()), Line::from(second.clone())]),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(vec![Line::from(first), Line::from(second)]).style(normal),
         layout.footer,

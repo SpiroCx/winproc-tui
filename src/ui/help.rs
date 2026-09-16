@@ -69,6 +69,14 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Click shortcut",
+        label: "Run the displayed footer action; hover highlights its full group",
+    },
+    HelpItem {
+        key: "Click MENU / outside menu",
+        label: "Close menu; confirmations require an explicit footer action",
+    },
+    HelpItem {
         key: "F2/F3/F4",
         label: "Processes / Network / Find file users view",
     },
@@ -780,6 +788,12 @@ pub(crate) fn draw_help(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, t
         theme,
     );
     if !layout.footer.is_empty() {
+        crate::ui::footer::register_shortcut_text(
+            app,
+            layout.footer,
+            &ratatui::text::Text::from(Line::from(shortcut_spans(&HELP_SHORTCUT_ITEMS, theme))),
+            ratatui::layout::Alignment::Left,
+        );
         frame.render_widget(
             Paragraph::new(Line::from(shortcut_spans(&HELP_SHORTCUT_ITEMS, theme))),
             layout.footer,

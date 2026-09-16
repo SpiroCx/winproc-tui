@@ -160,6 +160,15 @@ pub(crate) fn draw_system_info_dialog(
         content,
     );
 
+    crate::ui::footer::register_shortcut_text(
+        app,
+        Rect::new(inner.x, inner.bottom().saturating_sub(1), inner.width, 1),
+        &ratatui::text::Text::from(Line::from(shortcut_spans(
+            &[("Ctrl+C", "Copy"), ("Enter/Esc", "Close")],
+            theme,
+        ))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(
             &[("Ctrl+C", "Copy"), ("Enter/Esc", "Close")],

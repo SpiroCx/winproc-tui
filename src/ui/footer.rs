@@ -12,6 +12,21 @@ use crate::{
 };
 
 pub(crate) fn draw_footer(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+    register_shortcut_text(
+        app,
+        Rect::new(
+            area.x,
+            area.y + 1,
+            area.width,
+            area.height.saturating_sub(1),
+        ),
+        &ratatui::text::Text::from(Line::from(context_shortcuts(
+            app,
+            theme,
+            area.width as usize,
+        ))),
+        ratatui::layout::Alignment::Left,
+    );
     let footer = Paragraph::new(Line::from(context_shortcuts(
         app,
         theme,
@@ -282,4 +297,123 @@ pub(crate) fn shortcut_action_at(
         left = right.saturating_add(2);
     }
     None
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct ShortcutRegion {
+    pub(crate) area: Rect,
+    pub(crate) key: crossterm::event::KeyEvent,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ShortcutMap {
+    pub(crate) screen: Rect,
+    pub(crate) regions: Vec<ShortcutRegion>,
+}
+
+// Register exactly the complete groups that fit in the rendered shortcut line.
+// Each visible layer replaces the underlying map, so modal input cannot leak through.
+pub(crate) fn register_shortcut_text(
+    app: &App,
+    area: Rect,
+    text: &ratatui::text::Text<'_>,
+    alignment: ratatui::layout::Alignment,
+) {
+    let mut map = app.shortcut_map.borrow_mut();
+    for (row, line) in text.lines.iter().take(area.height as usize).enumerate() {
+        let align = line.alignment.unwrap_or(alignment);
+        let padding = area.width.saturating_sub(line.width() as u16);
+        let mut x = area.x
+            + match align {
+                ratatui::layout::Alignment::Center => {
+                    (area.width / 2).saturating_sub(line.width() as u16 / 2)
+                }
+                ratatui::layout::Alignment::Right => padding,
+                _ => 0,
+            };
+        for (index, span) in line.spans.iter().enumerate() {
+            let width = span.width() as u16;
+            if let Some(key) = shortcut_key(&span.content)
+                && let Some(label) = line.spans.get(index + 1)
+                && label.content.starts_with(' ')
+                && !label.content.trim().is_empty()
+            {
+                let group_width = width.saturating_add(label.width() as u16);
+                if x.saturating_add(group_width) <= area.right() {
+                    map.regions.push(ShortcutRegion {
+                        area: Rect::new(x, area.y + row as u16, group_width, 1),
+                        key,
+                    });
+                }
+            }
+            x = x.saturating_add(width);
+        }
+    }
+}
+
+fn shortcut_key(label: &str) -> Option<crossterm::event::KeyEvent> {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    let first = label.split('/').next()?.trim();
+    let mut key = first;
+    let mut modifiers = KeyModifiers::NONE;
+    loop {
+        if let Some(rest) = key.strip_prefix("Ctrl+") {
+            modifiers |= KeyModifiers::CONTROL;
+            key = rest;
+        } else if let Some(rest) = key.strip_prefix("Shift+") {
+            modifiers |= KeyModifiers::SHIFT;
+            key = rest;
+        } else if let Some(rest) = key.strip_prefix("Alt+") {
+            modifiers |= KeyModifiers::ALT;
+            key = rest;
+        } else {
+            break;
+        }
+    }
+    let code = match key {
+        "ESC" | "Esc" => KeyCode::Esc,
+        "Enter" => KeyCode::Enter,
+        "Tab" => KeyCode::Tab,
+        "Space" => KeyCode::Char(' '),
+        "Backspace" => KeyCode::Backspace,
+        "Delete" | "Del" => KeyCode::Delete,
+        "Home" => KeyCode::Home,
+        "End" => KeyCode::End,
+        "PgUp" | "PageUp" => KeyCode::PageUp,
+        "PgDn" | "PageDown" => KeyCode::PageDown,
+        "↑" | "↑↓←→" => KeyCode::Up,
+        "↓" => KeyCode::Down,
+        "←" => KeyCode::Left,
+        "→" => KeyCode::Right,
+        _ if key.starts_with('F') && key.len() > 1 => KeyCode::F(key[1..].parse().ok()?),
+        _ if key.chars().count() == 1 => {
+            let ch = key.chars().next()?;
+            KeyCode::Char(if modifiers.contains(KeyModifiers::CONTROL) {
+                ch.to_ascii_lowercase()
+            } else {
+                ch
+            })
+        }
+        _ => return None,
+    };
+    Some(KeyEvent::new(code, modifiers))
+}
+
+pub(crate) fn draw_shortcut_hover(frame: &mut ratatui::Frame<'_>, app: &App) {
+    let Some(area) = app.shortcut_hovered else {
+        return;
+    };
+    if !app
+        .shortcut_map
+        .borrow()
+        .regions
+        .iter()
+        .any(|region| region.area == area)
+    {
+        return;
+    }
+    let style = Style::default()
+        .bg(app.theme().focus_surface)
+        .add_modifier(ratatui::style::Modifier::BOLD);
+    frame.buffer_mut().set_style(area, style);
 }

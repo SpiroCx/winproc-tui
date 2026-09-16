@@ -526,6 +526,12 @@ fn draw_footer(frame: &mut ratatui::Frame<'_>, footer: Rect, app: &App, theme: T
     if footer.is_empty() {
         return;
     }
+    crate::ui::footer::register_shortcut_text(
+        app,
+        footer,
+        &ratatui::text::Text::from(Line::from(shortcut_spans(app, footer.width, theme))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(app, footer.width, theme)))
             .style(Style::default().bg(theme.panel_alt)),

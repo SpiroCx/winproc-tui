@@ -192,6 +192,12 @@ fn draw_browse(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: The
         shortcuts.push(("Ctrl+S", "Save As"));
     }
     shortcuts.push(("Esc", "Close"));
+    crate::ui::footer::register_shortcut_text(
+        app,
+        row(content, layout.shortcut_row),
+        &ratatui::text::Text::from(Line::from(shortcut_spans(&shortcuts, theme))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(&shortcuts, theme))),
         row(content, layout.shortcut_row),
@@ -234,6 +240,15 @@ fn draw_startup(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Th
             row(content, STARTUP_OPTION_ROW + index as u16),
         );
     }
+    crate::ui::footer::register_shortcut_text(
+        app,
+        row(content, STARTUP_SHORTCUT_ROW),
+        &ratatui::text::Text::from(Line::from(shortcut_spans(
+            &[("↑/↓", "Select"), ("Enter", "Apply"), ("Esc", "Close")],
+            theme,
+        ))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(
             &[("↑/↓", "Select"), ("Enter", "Apply"), ("Esc", "Close")],
@@ -283,6 +298,15 @@ fn draw_name_input(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme:
             row(content, 3),
         );
     }
+    crate::ui::footer::register_shortcut_text(
+        app,
+        row(content, 5),
+        &ratatui::text::Text::from(Line::from(shortcut_spans(
+            &[("Enter", "Save"), ("Esc", "Cancel")],
+            theme,
+        ))),
+        ratatui::layout::Alignment::Left,
+    );
     frame.render_widget(
         Paragraph::new(Line::from(shortcut_spans(
             &[("Enter", "Save"), ("Esc", "Cancel")],
@@ -296,7 +320,7 @@ fn draw_name_input(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme:
     ));
 }
 
-fn draw_delete_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+fn draw_delete_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, _theme: Theme) {
     let Some(InvestigationProfilesView::ConfirmDelete { name }) = app.investigation_profiles_view()
     else {
         return;
@@ -308,11 +332,11 @@ fn draw_delete_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, th
         &format!("Delete \"{name}\"? The current setup is kept."),
         "This cannot be undone.",
         &[("Enter", "Delete"), ("Esc", "Cancel")],
-        theme,
+        app,
     );
 }
 
-fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
+fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, _theme: Theme) {
     let Some(InvestigationProfilesView::ConfirmLoad { pending }) =
         app.investigation_profiles_view()
     else {
@@ -365,7 +389,7 @@ fn draw_load_confirm(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, them
             )
         ),
         &[("Enter", "Load"), ("Esc", "Cancel")],
-        theme,
+        app,
     );
 }
 
@@ -376,8 +400,9 @@ fn draw_confirm(
     message: &str,
     detail: &str,
     shortcuts: &[(&'static str, &'static str)],
-    theme: Theme,
+    app: &App,
 ) {
+    let theme = app.theme();
     let popup = centered_dialog_rect(area, CONFIRM_DIALOG_WIDTH, CONFIRM_DIALOG_HEIGHT);
     let block = confirm_dialog::warning_block(title, theme);
     let content = block.inner(popup);
@@ -395,6 +420,12 @@ fn draw_confirm(
             height: 2,
             ..row(content, 2)
         },
+    );
+    crate::ui::footer::register_shortcut_text(
+        app,
+        row(content, 5),
+        &ratatui::text::Text::from(Line::from(warning_shortcut_spans(shortcuts, theme))),
+        ratatui::layout::Alignment::Center,
     );
     frame.render_widget(
         Paragraph::new(Line::from(warning_shortcut_spans(shortcuts, theme)))
