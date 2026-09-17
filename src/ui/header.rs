@@ -99,12 +99,15 @@ pub(crate) fn draw_header(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App,
         )
     };
     let profile_budget = budget.min(spans.iter().map(Span::width).sum::<usize>() + 30);
-    let count = spans.len();
-    append_fitting_label(&mut spans, &profile, profile_budget, theme.muted);
-    if spans.len() > count {
-        spans.last_mut().unwrap().style = Style::default()
-            .fg(ratatui::style::Color::Black)
-            .bg(theme.muted);
+    let remaining = profile_budget.saturating_sub(spans.iter().map(Span::width).sum::<usize>());
+    if remaining >= 8 {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            format!(" {} ", truncate_name(&profile, remaining - 4)),
+            Style::default()
+                .fg(ratatui::style::Color::Black)
+                .bg(theme.muted),
+        ));
     }
     if let Some(path) = app.active_log_path() {
         append_fitting_label(
@@ -288,6 +291,7 @@ pub(crate) enum HeaderAction {
     Session,
     Profile,
     View,
+    Tools,
     Settings,
     Help,
     Processes,
@@ -301,6 +305,7 @@ impl HeaderAction {
             Self::Session => " Session ▾ ",
             Self::Profile => " Profile ▾ ",
             Self::View => " View ▾ ",
+            Self::Tools => " Tools ▾ ",
             Self::Settings => " Settings ▾ ",
             Self::Help => " Help ",
             Self::Processes => "[Processes]",
@@ -315,10 +320,11 @@ impl HeaderAction {
             Self::Session => "Session",
             Self::Profile => "Profile",
             Self::View => "View",
+            Self::Tools => "Tools",
             Self::Settings => "Settings",
             Self::Help => "Help",
             Self::Processes => "Processes",
-            Self::Network => "Network",
+            Self::Network => "Network endpoints",
             Self::More => "More",
         }
     }
@@ -327,6 +333,7 @@ impl HeaderAction {
             Self::Session => Some(MainMenuSection::Session),
             Self::Profile => Some(MainMenuSection::Profile),
             Self::View => Some(MainMenuSection::View),
+            Self::Tools => Some(MainMenuSection::Tools),
             Self::Settings => Some(MainMenuSection::Settings),
             Self::More => Some(MainMenuSection::More),
             _ => None,
@@ -335,6 +342,7 @@ impl HeaderAction {
     fn access_index(self) -> Option<usize> {
         match self {
             Self::Session | Self::Profile | Self::View => Some(1),
+            Self::Tools => Some(2),
             Self::Settings => Some(3),
             _ => None,
         }
@@ -344,6 +352,7 @@ impl HeaderAction {
             Self::Session => "Alt+S",
             Self::Profile => "Alt+P",
             Self::View => "Alt+V",
+            Self::Tools => "Alt+O",
             Self::Settings => "Alt+T",
             Self::Help => "F1",
             Self::Processes => "F2",
@@ -356,14 +365,10 @@ impl HeaderAction {
 
 fn available_actions(app: &App) -> Vec<HeaderAction> {
     use HeaderAction::*;
-    [
-        Session, Profile, View, Settings, Help, Processes, Network, FileUsers,
-    ]
-    .into_iter()
-    .filter(|action| {
-        app.activity() != AppActivity::LogView || !matches!(action, Network | FileUsers)
-    })
-    .collect()
+    [Session, Profile, View, Tools, Settings, Help]
+        .into_iter()
+        .filter(|action| app.activity() != AppActivity::LogView || *action != Tools)
+        .collect()
 }
 
 pub(crate) fn header_actions(area: Rect, app: &App) -> Vec<(HeaderAction, Rect)> {

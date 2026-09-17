@@ -68,7 +68,7 @@ pub(crate) fn draw_system_panel(
         );
     }
 
-    let mut activity_block = panel_block_focused(
+    let activity_block = panel_block_focused(
         Line::from(Span::styled(
             "NW/DISK",
             Style::default().add_modifier(Modifier::BOLD),
@@ -76,24 +76,6 @@ pub(crate) fn draw_system_panel(
         theme,
         app.panel_has_focus(FocusedPanel::SystemActivity),
     );
-    if network_endpoint_action_area(frame.area(), app).is_some() {
-        let hovered = app.header_action_hovered == Some(crate::ui::header::HeaderAction::Network);
-        activity_block = activity_block.title_bottom(Line::from(Span::styled(
-            "[Endpoints]",
-            Style::default()
-                .fg(theme.key_hint)
-                .bg(if hovered {
-                    theme.focus_surface
-                } else {
-                    theme.panel
-                })
-                .add_modifier(if hovered {
-                    Modifier::BOLD
-                } else {
-                    Modifier::empty()
-                }),
-        )));
-    }
     let activity_inner = activity_block.inner(panels[2]);
     frame.render_widget(activity_block, panels[2]);
 
@@ -969,10 +951,4 @@ pub(crate) fn optional_value_color(value: Option<u64>, theme: Theme) -> ratatui:
         Some(_) => theme.text,
         None => theme.muted,
     }
-}
-
-pub(crate) fn network_endpoint_action_area(screen: Rect, app: &App) -> Option<Rect> {
-    let area = system_activity_panel_area_for_screen(screen, app);
-    (app.activity() != crate::app::AppActivity::LogView && area.width >= 13 && area.height > 0)
-        .then(|| Rect::new(area.x + 1, area.bottom() - 1, 11, 1))
 }

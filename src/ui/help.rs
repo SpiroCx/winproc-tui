@@ -40,8 +40,8 @@ struct HelpSection {
 
 const FILE_USERS_ROWS: &[HelpItem] = &[
     HelpItem {
-        key: "F3 / F4 or header",
-        label: "Network / Find processes by file; also in header (Live/REC)",
+        key: "F3 / F4 or Tools",
+        label: "Network / Find processes by file (Live/REC)",
     },
     HelpItem {
         key: "Find processes by file: Tab/Shift+Tab",
@@ -71,8 +71,8 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
-        key: "Alt+S/P/V/T",
-        label: "Session / Profile / View / Settings menus",
+        key: "Alt+S/P/V/O/T",
+        label: "Session / Profile / View / Tools / Settings menus",
     },
     HelpItem {
         key: "Menu / Shift+F10",
@@ -650,7 +650,7 @@ const PROCESS_GRAPH_SPLIT_ROWS: &[HelpItem] = &[
 
 const NETWORK_ROWS: &[HelpItem] = &[
     HelpItem {
-        key: "MENU > Investigate",
+        key: "F3 / Tools > Network",
         label: "Open Network endpoints (Live / Recording)",
     },
     HelpItem {

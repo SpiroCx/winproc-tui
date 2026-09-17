@@ -673,7 +673,7 @@ fn network_tcp_state_labels_match_windows_netstat_in_details_filter_and_copy() {
 }
 
 #[test]
-fn investigation_views_preserve_results_and_expose_direct_header_actions() {
+fn investigation_views_preserve_results_and_expose_tools_menu() {
     let (mut app, requests, results) = setup();
     let screen = Rect::new(0, 0, 180, 60);
     sync_layout_state(&mut app, screen);
@@ -690,15 +690,7 @@ fn investigation_views_preserve_results_and_expose_direct_header_actions() {
             > 40
     );
     let text = render_app_to_text(&app, 180, 60);
-    for label in [
-        "[Processes]",
-        "[Network]",
-        "[Find by file]",
-        "View ▾",
-        "Session ▾",
-        "Settings ▾",
-        " Help ",
-    ] {
+    for label in ["Tools ▾", "View ▾", "Session ▾", "Settings ▾", " Help "] {
         assert!(text.lines().next().unwrap().contains(label), "{text}");
     }
     press(&mut app, KeyCode::F(4));
@@ -736,10 +728,7 @@ fn investigation_views_preserve_results_and_expose_direct_header_actions() {
     assert!(app.file_users.pending.is_none());
     assert_eq!(app.activity(), activity);
     press(&mut app, KeyCode::F(2));
-    let entry = ui::system_panel::network_endpoint_action_area(screen, &app).unwrap();
-    app.on_mouse(left_click(entry.x, entry.y), screen);
-    assert!(app.network_browser.visible);
-    press(&mut app, KeyCode::F(2));
+    assert!(!render_app_to_text(&app, 180, 60).contains("[Endpoints]"));
     app.focused_panel = crate::app::FocusedPanel::SystemActivity;
     press(&mut app, KeyCode::Enter);
     assert!(app.network_browser.visible);

@@ -928,6 +928,7 @@ pub(crate) enum MainMenuSection {
     Session,
     Profile,
     View,
+    Tools,
     Settings,
     More,
 }
@@ -966,7 +967,7 @@ impl MainMenuSection {
                 ToggleContrast,
                 OpenStartupBehavior,
             ],
-            (Self::More, _) => &[],
+            (Self::Tools | Self::More, _) => &[],
         }
     }
 }
@@ -6432,6 +6433,18 @@ impl App {
     }
 
     pub(crate) fn main_menu_rows(&self) -> Vec<MainMenuRow> {
+        if self.main_menu_section == MainMenuSection::Tools {
+            return [
+                crate::ui::header::HeaderAction::Network,
+                crate::ui::header::HeaderAction::FileUsers,
+            ]
+            .into_iter()
+            .filter(|_| self.main_menu_activity() != AppActivity::LogView)
+            .map(|action| MainMenuRow {
+                item: MainMenuItem::Header(action),
+            })
+            .collect();
+        }
         if self.main_menu_section == MainMenuSection::More {
             return crate::ui::header::overflow_actions(self.shortcut_map.borrow().screen, self)
                 .into_iter()
@@ -6547,20 +6560,25 @@ impl App {
     }
 
     pub(crate) fn switch_main_menu(&mut self, forward: bool) {
+        let has_overflow =
+            !crate::ui::header::overflow_actions(self.shortcut_map.borrow().screen, self)
+                .is_empty();
         let sections = [
             MainMenuSection::Session,
             MainMenuSection::Profile,
             MainMenuSection::View,
+            MainMenuSection::Tools,
             MainMenuSection::Settings,
             MainMenuSection::More,
-        ];
-        let count = if crate::ui::header::overflow_actions(self.shortcut_map.borrow().screen, self)
-            .is_empty()
-        {
-            4
-        } else {
-            5
-        };
+        ]
+        .into_iter()
+        .filter(|section| match section {
+            MainMenuSection::Tools => self.activity() != AppActivity::LogView,
+            MainMenuSection::More => has_overflow,
+            _ => true,
+        })
+        .collect::<Vec<_>>();
+        let count = sections.len();
         let index = sections
             .iter()
             .position(|section| *section == self.main_menu_section)
@@ -6608,6 +6626,9 @@ impl App {
     }
 
     pub(crate) fn open_main_menu_section(&mut self, section: MainMenuSection) {
+        if section == MainMenuSection::Tools && self.activity() == AppActivity::LogView {
+            return;
+        }
         self.main_menu_activity = Some(self.activity());
         self.main_menu_section = section;
         self.main_menu_selected = 0;

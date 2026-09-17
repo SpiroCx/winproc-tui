@@ -663,6 +663,7 @@ impl App {
                 's' => Some(super::state::MainMenuSection::Session),
                 'p' => Some(super::state::MainMenuSection::Profile),
                 'v' => Some(super::state::MainMenuSection::View),
+                'o' => Some(super::state::MainMenuSection::Tools),
                 't' => Some(super::state::MainMenuSection::Settings),
                 _ => None,
             };
@@ -1560,19 +1561,7 @@ impl App {
         self.header_action_hovered = if self.has_workspace_overlay() && !self.is_main_menu_open() {
             None
         } else {
-            crate::ui::header::header_action_at(screen_area, self, mouse.column, mouse.row).or_else(
-                || {
-                    (!self.has_workspace_overlay()
-                        && !self.network_browser.visible
-                        && !self.file_users.visible)
-                        .then(|| {
-                            crate::ui::system_panel::network_endpoint_action_area(screen_area, self)
-                        })
-                        .flatten()
-                        .filter(|area| contains_point(*area, mouse.column, mouse.row))
-                        .map(|_| crate::ui::header::HeaderAction::Network)
-                },
-            )
+            crate::ui::header::header_action_at(screen_area, self, mouse.column, mouse.row)
         };
         if mouse.kind == MouseEventKind::Down(MouseButton::Left)
             && let Some(action) = self.header_action_hovered

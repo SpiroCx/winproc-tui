@@ -89,7 +89,7 @@ Use `Tab` / `Shift+Tab` to move between panels and the arrow keys to select rows
 - **Investigation Profiles**: Saves named Tracking Lists for investigations that may start before their target processes. Tracked processes retain their latest values after exit.
 - **.NET metrics**: Automatically detects live .NET 8/9/10 processes and shows managed-runtime metrics, with selected heap metrics for .NET Framework 4.8.
 - **Process Info**: Brings metrics, image and runtime details, open files, DLLs, environment variables, and network endpoints together for the selected process. Its Scheduling tab can inspect and change CPU priority and, on single-processor-group systems, CPU affinity, with direct application and explicit restoration of the previous value.
-- **Network endpoints**: Open **Network** in the header or from **NW/DISK** to inspect TCP/UDP addresses, ports, and owners across the system, then open Process Info for an owner. The workspace keeps its results and filter when switching views. Lists refresh on demand and are not recorded.
+- **Network endpoints**: Open **Tools > Network endpoints** (**F3**) to inspect TCP/UDP addresses, ports, and owners across the system, then open Process Info for an owner. The workspace keeps its results and filter when switching views. Lists refresh on demand and are not recorded.
 - **Recording and Log view**: Records system metrics and matching processes as JSON Lines, then reopens them in the same Processes, Graph, Samples, and A/B views.
 
 The last working Tracking List and application-wide presentation preferences are restored on the next launch, or startup can choose a saved Investigation Profile or an empty Tracking List. Graph registrations begin empty on every run; filter input and runtime process identities are not saved.
@@ -103,7 +103,7 @@ The last working Tracking List and application-wide presentation preferences are
 - Compare `Private Bytes` with `Working Set - Private` to investigate whether a large allocated buffer may be going unused.
 - Review handle-count trends and the Files tab in Process Info to find files that may not have been closed. Inspect each file handle's cache mode, write-through setting, I/O mode, and access rights.
 - Inspect the paths and versions of DLLs loaded by a process.
-- Find processes using a file by name or path through **Find by file** in the header, then open the owner's Files tab. Search reports include partial-coverage information.
+- Find processes using a file by name or path through **Tools > Find processes by file** (**F4**), then open the owner's Files tab. Search reports include partial-coverage information.
 - Compare resource usage before and after a specific operation or code change.
 - Record a target process and later inspect history around the time an issue occurred.
 

@@ -290,7 +290,7 @@ fn menu_arrows_switch_categories_and_restore_workspace_focus() {
 fn menu_access_keys_respect_editors_modals_and_existing_alt_h() {
     use crate::app::{ProcessPanelHeight, file_users::FileUsersFocus};
     let mut app = make_test_app(1, 10);
-    for ch in ['s', 'p', 'v', 't'] {
+    for ch in ['s', 'p', 'v', 'o', 't'] {
         app.begin_filter_edit();
         alt(&mut app, ch);
         assert!(!app.is_main_menu_open());
@@ -407,7 +407,7 @@ fn overflow_preserves_destinations_and_hidden_access_keys() {
         .unwrap()
         .1;
     app.on_mouse(left_click(more.x, more.y), screen);
-    assert!(menu_labels(&app).contains(&"Find processes by file".to_string()));
+    assert!(menu_labels(&app).contains(&"Tools".to_string()));
     assert!(!menu_labels(&app).contains(&"Quit".to_string()));
     assert!(
         !actions
@@ -423,8 +423,11 @@ fn overflow_preserves_destinations_and_hidden_access_keys() {
     app.main_menu_selected = app
         .main_menu_rows()
         .iter()
-        .position(|row| row.item == MainMenuItem::Header(HeaderAction::FileUsers))
+        .position(|row| row.item == MainMenuItem::Header(HeaderAction::Tools))
         .unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.main_menu_section, MainMenuSection::Tools);
+    press(&mut app, KeyCode::Down);
     press(&mut app, KeyCode::Enter);
     assert!(app.file_users.visible);
     assert!(app.file_users.pending.is_none());
@@ -534,4 +537,57 @@ fn narrow_header_keeps_pause_and_stale_status_after_menu_controls() {
     assert!(header.contains("STALE"), "{header}");
     assert!(header.contains("DISPLAY PAUSED"), "{header}");
     assert!(header.find("More").unwrap() < header.find("LIVE").unwrap());
+}
+
+#[test]
+fn tools_exposes_keyboard_routes_and_no_workspace_buttons_remain_in_header() {
+    let mut app = make_test_app(1, 10);
+    for width in [80, 120, 180] {
+        let text = render_app_to_text(&app, width, 60);
+        let header = text.lines().next().unwrap();
+        for removed in ["[Processes]", "[Network]", "[Find by file]"] {
+            assert!(!header.contains(removed));
+        }
+        alt(&mut app, 'o');
+        assert_eq!(
+            menu_labels(&app),
+            ["Network endpoints", "Find processes by file"]
+        );
+        let text = render_app_to_text(&app, width, 60);
+        assert!(text.contains("F3") && text.contains("F4"));
+        press(&mut app, KeyCode::Esc);
+    }
+    let screen = Rect::new(0, 0, 120, 60);
+    let tools = ui::header::header_actions(ui::screen_layout(screen)[0], &app)
+        .into_iter()
+        .find(|(a, _)| *a == HeaderAction::Tools)
+        .unwrap()
+        .1;
+    app.on_mouse(left_click(tools.x, tools.y), screen);
+    let row = main_menu_item_area(screen, &app, 1).unwrap();
+    app.on_mouse(left_click(row.x, row.y), screen);
+    assert!(app.file_users.visible);
+    press(&mut app, KeyCode::F(2));
+    app.log_view_path = Some(PathBuf::from("example.log"));
+    alt(&mut app, 'o');
+    assert!(!app.is_main_menu_open());
+    press(&mut app, KeyCode::F(3));
+    press(&mut app, KeyCode::F(4));
+    assert!(!app.network_browser.visible && !app.file_users.visible);
+}
+
+#[test]
+fn profile_badge_keeps_both_padding_cells_when_truncated() {
+    for name in ["chrome".to_string(), "調査プロファイル名".repeat(10)] {
+        for width in [80, 120, 180] {
+            let mut app = make_test_app(1, 10);
+            app.active_investigation_profile = Some(name.clone());
+            let buffer = render_app_to_buffer(&app, width, 60);
+            let (x, y) = find_text_position(&buffer, "PF:").unwrap();
+            assert_eq!(buffer[(x - 1, y)].symbol(), " ");
+            assert_eq!(buffer[(x - 1, y)].bg, app.theme().muted);
+            assert_eq!(buffer[(width - 1, y)].symbol(), " ");
+            assert_eq!(buffer[(width - 1, y)].bg, app.theme().muted);
+        }
+    }
 }
