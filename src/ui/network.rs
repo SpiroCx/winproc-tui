@@ -567,7 +567,7 @@ pub(crate) fn shortcuts(
             ("Esc", "close"),
             ("Enter", "info"),
             ("Space", "details"),
-            ("Ctrl+F /", "filter"),
+            ("/", "filter"),
             ("a", "mode"),
             ("r", "refresh"),
         ]

@@ -357,3 +357,39 @@ fn file_users_queries_and_results_stay_outside_recordings() {
     }
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn file_search_reopens_at_query_and_slash_focuses_from_mode_or_results() {
+    let (mut app, requests, _) = setup();
+    app.file_users.draft = "映像".into();
+    app.file_users.report.matches = vec![entry(0), entry(1)];
+    app.file_users.selected = 1;
+    app.file_users.focus = FileUsersFocus::Results;
+    app.file_users.detail = true;
+    press(&mut app, KeyCode::F(4));
+    assert_eq!(app.file_users.focus, FileUsersFocus::Query);
+    assert!(!app.file_users.detail);
+    assert_eq!(app.file_users.cursor, "映像".len());
+    press(&mut app, KeyCode::Char('/'));
+    assert_eq!(app.file_users.draft, "映像/");
+    for focus in [FileUsersFocus::Mode, FileUsersFocus::Results] {
+        app.file_users.focus = focus;
+        let buffer = render_app_to_buffer(&app, 120, 60);
+        let (x, y) = super::support::find_text_position(&buffer, "/ query").unwrap();
+        app.on_mouse(left_click(x, y), Rect::new(0, 0, 120, 60));
+        assert_eq!(app.file_users.focus, FileUsersFocus::Query);
+        assert_eq!(app.file_users.draft, "映像/");
+        assert_eq!(app.file_users.cursor, "映像/".len());
+    }
+    app.file_users.focus = FileUsersFocus::Results;
+    app.file_users.detail = true;
+    press(&mut app, KeyCode::Char('/'));
+    assert!(app.file_users.detail);
+    assert_eq!(app.file_users.focus, FileUsersFocus::Results);
+    press(&mut app, KeyCode::F(2));
+    press(&mut app, KeyCode::F(4));
+    assert_eq!(app.file_users.focus, FileUsersFocus::Query);
+    assert_eq!(app.file_users.report.matches.len(), 2);
+    assert_eq!(app.file_users.selected, 1);
+    assert!(requests.try_recv().is_err());
+}

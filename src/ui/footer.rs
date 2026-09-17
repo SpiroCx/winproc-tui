@@ -356,7 +356,11 @@ pub(crate) fn register_shortcut_text(
 
 fn shortcut_key(label: &str) -> Option<crossterm::event::KeyEvent> {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let first = label.split('/').next()?.trim();
+    let first = if label.trim() == "/" {
+        "/"
+    } else {
+        label.split('/').next()?.trim()
+    };
     let mut key = first;
     let mut modifiers = KeyModifiers::NONE;
     loop {

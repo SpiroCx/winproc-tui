@@ -47,6 +47,9 @@ impl App {
         }
         self.network_browser.visible = false;
         self.file_users.visible = true;
+        self.file_users.detail = false;
+        self.file_users.focus = FileUsersFocus::Query;
+        self.file_users.cursor = self.file_users.draft.len();
     }
 
     pub(crate) fn close_file_users(&mut self) {
@@ -241,6 +244,17 @@ impl App {
             return Ok(());
         }
         let view = &mut self.file_users;
+        if !view.detail
+            && view.focus != FileUsersFocus::Query
+            && key.code == KeyCode::Char('/')
+            && !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+        {
+            view.focus = FileUsersFocus::Query;
+            view.cursor = view.draft.len();
+            return Ok(());
+        }
         if matches!(key.code, KeyCode::Tab | KeyCode::BackTab) {
             view.detail = false;
             let reverse =

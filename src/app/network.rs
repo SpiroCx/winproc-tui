@@ -92,6 +92,10 @@ impl App {
         }
         self.file_users.visible = false;
         self.network_browser.visible = true;
+        self.network_browser.detail = false;
+        self.network_browser.detail_entry = None;
+        self.network_browser.editing = true;
+        self.network_browser.cursor = self.network_browser.filter.len();
         if self.network_browser.generation == 0 {
             self.network_next_id = self.network_next_id.wrapping_add(1).max(1);
             self.network_browser.generation = self.network_next_id;
@@ -399,7 +403,11 @@ impl App {
             }
             KeyCode::Char(ch)
                 if !view.detail
-                    && ((global && ch == '/')
+                    && ((global
+                        && ch == '/'
+                        && !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT))
                         || (ch.eq_ignore_ascii_case(&'f')
                             && key.modifiers.contains(KeyModifiers::CONTROL))) =>
             {

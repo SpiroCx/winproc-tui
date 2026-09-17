@@ -1605,3 +1605,32 @@ fn paused_resize_handle_entry_and_exit_request_an_immediate_redraw() {
     assert!(app.is_display_paused());
     assert_eq!(app.display_snapshot().captured_at, captured);
 }
+
+#[test]
+fn environment_slash_starts_filter_from_tabs_and_content_without_entering_text() {
+    use crate::app::{ProcessInfoFocus, ProcessInfoTab};
+    for focus in [ProcessInfoFocus::Tabs, ProcessInfoFocus::Content] {
+        let mut app = make_test_app(1, 10);
+        app.show_process_info_dialog = true;
+        app.process_info_tab = ProcessInfoTab::Environment;
+        app.process_info_focus = focus;
+        app.process_environment_filter = "日本語".into();
+        assert!(render_app_to_text(&app, 120, 60).contains("/ filter"));
+        app.on_key(KeyCode::Char('/').into()).unwrap();
+        assert!(app.process_info_filter_editing);
+        assert_eq!(app.process_info_focus, ProcessInfoFocus::Content);
+        assert_eq!(app.process_environment_filter, "日本語");
+        assert_eq!(app.process_environment_filter_cursor, "日本語".len());
+        app.on_key(KeyCode::Char('/').into()).unwrap();
+        assert_eq!(app.process_environment_filter, "日本語/");
+        app.on_key(KeyCode::Home.into()).unwrap();
+        app.on_key(KeyCode::Char('先').into()).unwrap();
+        assert_eq!(app.process_environment_filter, "先日本語/");
+        app.on_key(KeyCode::Enter.into()).unwrap();
+        assert!(!app.process_info_filter_editing);
+        app.process_environment_show_detail = true;
+        app.on_key(KeyCode::Char('/').into()).unwrap();
+        assert!(!app.process_info_filter_editing);
+        assert_eq!(app.process_environment_filter, "先日本語/");
+    }
+}

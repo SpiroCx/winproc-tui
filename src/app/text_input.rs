@@ -80,9 +80,20 @@ impl App {
         {
             return false;
         }
-        if key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL {
+        let environment_slash = self.process_info_tab == ProcessInfoTab::Environment
+            && !self.process_info_filter_editing
+            && key.code == KeyCode::Char('/')
+            && !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
+        if environment_slash
+            || (key.code == KeyCode::Char('f') && key.modifiers == KeyModifiers::CONTROL)
+        {
             self.process_info_focus = ProcessInfoFocus::Content;
             self.process_info_filter_editing = true;
+            if environment_slash {
+                self.process_environment_filter_cursor = self.process_environment_filter.len();
+            }
             if self.process_info_tab == ProcessInfoTab::Network {
                 self.process_network.editing = true;
             }

@@ -40,6 +40,10 @@ struct HelpSection {
 
 const FILE_USERS_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "/ (Mode / Results)",
+        label: "Edit Query; opening file search focuses Query",
+    },
+    HelpItem {
         key: "F3 / F4 or Tools",
         label: "Network / Find processes by file (Live/REC)",
     },
@@ -303,6 +307,10 @@ const PROCESS_INFO_ROWS: &[HelpItem] = &[
     HelpItem {
         key: "Files: Auto",
         label: "2–10s while visible; >1s/error stops; Ctrl+U retry",
+    },
+    HelpItem {
+        key: "/ (Environment)",
+        label: "Start Filter editing; / stays literal while editing",
     },
     HelpItem {
         key: "Ctrl+F (Info)",
@@ -666,8 +674,8 @@ const NETWORK_ROWS: &[HelpItem] = &[
         label: "Filter directly, including /, a, r, Space",
     },
     HelpItem {
-        key: "/ (global list)",
-        label: "Edit filter (or click Filter)",
+        key: "/ or Ctrl+F (global list)",
+        label: "Edit Filter; opening Network focuses Filter",
     },
     HelpItem {
         key: "Enter/Esc (global filter)",

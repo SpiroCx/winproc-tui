@@ -93,12 +93,12 @@ fn press(app: &mut App, code: KeyCode) {
 #[test]
 fn network_browser_retains_sessions_rejects_stale_results_and_deduplicates_refresh() {
     let (mut app, requests, results) = setup();
-    app.open_network_browser();
+    open_network_list(&mut app);
     let mut old = capture(&requests);
     app.refresh_network(true);
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     press(&mut app, KeyCode::Esc);
-    app.open_network_browser();
+    open_network_list(&mut app);
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     let current = app.network_browser.pending.clone().unwrap();
     assert_eq!(old.generation, current.generation);
@@ -151,7 +151,7 @@ fn network_owner_navigation_is_verified_and_returns_to_retained_results() {
     let (mut app, requests, results) = setup();
     let snapshot = report(&app);
     let expected_identity = snapshot.endpoints[0].owner.as_ref().unwrap().identity();
-    app.open_network_browser();
+    open_network_list(&mut app);
     deliver(&mut app, &results, capture(&requests), snapshot);
     press(&mut app, KeyCode::Enter);
     let NetworkRequest::Verify(context, owner) = requests.try_recv().unwrap() else {
@@ -197,7 +197,7 @@ fn network_unresolved_and_exited_owners_cannot_navigate() {
     let (mut app, requests, results) = setup();
     let mut snapshot = report(&app);
     snapshot.endpoints[0].owner = None;
-    app.open_network_browser();
+    open_network_list(&mut app);
     deliver(&mut app, &results, capture(&requests), snapshot);
     press(&mut app, KeyCode::Enter);
     assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
@@ -396,7 +396,7 @@ fn network_filter_unicode_details_copy_and_mouse_geometry_remain_consistent() {
     let (mut app, requests, results) = setup();
     let mut snapshot = report(&app);
     snapshot.endpoints[1].owner.as_mut().unwrap().identity.name = "映像-player.exe".into();
-    app.open_network_browser();
+    open_network_list(&mut app);
     deliver(&mut app, &results, capture(&requests), snapshot);
     press(&mut app, KeyCode::Char('a'));
     press(&mut app, KeyCode::Char('/'));
@@ -439,7 +439,7 @@ fn network_partial_and_empty_captures_remain_distinguishable() {
     snapshot.endpoints.clear();
     snapshot.successful_tables = 3;
     snapshot.failures.push("TCP6: Windows error 5".into());
-    app.open_network_browser();
+    open_network_list(&mut app);
     deliver(&mut app, &results, capture(&requests), snapshot);
     let text = render_app_to_text(&app, 140, 35);
     assert!(text.contains("3/4 tables"));
@@ -461,7 +461,7 @@ fn network_scroll_and_selection_survive_refresh_and_resize() {
             entry
         })
         .collect();
-    app.open_network_browser();
+    open_network_list(&mut app);
     deliver(&mut app, &results, capture(&requests), snapshot.clone());
     sync_layout_state(&mut app, Rect::new(0, 0, 80, 24));
     press(&mut app, KeyCode::End);
@@ -530,6 +530,8 @@ fn network_process_detail_scroll_survives_layout_sync_and_uses_own_hit_regions()
 fn network_menu_opens_browser_and_late_owner_result_cannot_reopen_it() {
     let (mut app, requests, results) = setup();
     app.activate_header_action(ui::header::HeaderAction::Network);
+    assert!(app.network_browser.editing);
+    press(&mut app, KeyCode::Enter);
     assert!(app.network_browser.visible);
     assert!(!app.is_main_menu_open());
     let snapshot = report(&app);
@@ -763,6 +765,7 @@ fn network_footer_mouse_opens_verified_owner_refreshes_and_returns() {
         );
     };
     app.open_network_browser();
+    click(&mut app, "Enter Apply");
     let snapshot = report(&app);
     deliver(&mut app, &results, capture(&requests), snapshot);
     click(&mut app, "r refresh");
@@ -857,4 +860,51 @@ fn network_counts_distinguish_displayed_and_captured_endpoint_rows() {
     app.network_browser.detail = true;
     let text = render_app_to_text(&app, 180, 60);
     assert!(text.contains("TCP6: Windows error 5"), "{text}");
+}
+
+#[test]
+fn network_opens_and_reopens_in_filter_editor_and_slash_stays_literal_in_editor() {
+    let (mut app, requests, results) = setup();
+    app.on_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::ALT))
+        .unwrap();
+    press(&mut app, KeyCode::Enter);
+    assert!(app.network_browser.editing);
+    let snapshot = report(&app);
+    deliver(&mut app, &results, capture(&requests), snapshot);
+    for ch in "127".chars() {
+        press(&mut app, KeyCode::Char(ch));
+    }
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.network_browser.editing);
+    assert_eq!(app.network_browser.entries().len(), 1);
+    assert!(render_app_to_text(&app, 120, 60).contains("/ filter"));
+    press(&mut app, KeyCode::Char('/'));
+    assert!(app.network_browser.editing);
+    assert_eq!(app.network_browser.filter, "127");
+    press(&mut app, KeyCode::Char('/'));
+    assert_eq!(app.network_browser.filter, "127/");
+    press(&mut app, KeyCode::Backspace);
+    press(&mut app, KeyCode::Enter);
+    press(&mut app, KeyCode::Char(' '));
+    assert!(app.network_browser.detail);
+    press(&mut app, KeyCode::Char('/'));
+    assert!(!app.network_browser.editing);
+    press(&mut app, KeyCode::F(2));
+    press(&mut app, KeyCode::F(3));
+    assert!(app.network_browser.editing);
+    assert!(!app.network_browser.detail);
+    assert_eq!(app.network_browser.filter, "127");
+    assert_eq!(app.network_browser.cursor, 3);
+    assert_eq!(
+        app.network_browser.report.as_ref().unwrap().endpoints.len(),
+        3
+    );
+    assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
+}
+
+fn open_network_list(app: &mut App) {
+    app.open_network_browser();
+    assert!(app.network_browser.editing);
+    // Accept the initial filter before exercising endpoint-list commands.
+    press(app, KeyCode::Enter);
 }

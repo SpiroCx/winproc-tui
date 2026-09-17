@@ -440,10 +440,18 @@ pub(crate) fn draw_browser(frame: &mut ratatui::Frame<'_>, screen: Rect, app: &A
     } else if view.focus == FileUsersFocus::Query {
         super::footer::shortcut_spans(&[("←/→", "cursor"), ("Backspace/Delete", "edit")], theme)
     } else if view.focus == FileUsersFocus::Mode {
-        super::footer::shortcut_spans(&[("←/→", "mode"), ("Tab", "results")], theme)
+        super::footer::shortcut_spans(
+            &[("/", "query"), ("←/→", "mode"), ("Tab", "results")],
+            theme,
+        )
     } else {
         super::footer::shortcut_spans(
-            &[("↑/↓", "select"), ("Space", "details"), ("Ctrl+C", "copy")],
+            &[
+                ("/", "query"),
+                ("↑/↓", "select"),
+                ("Space", "details"),
+                ("Ctrl+C", "copy"),
+            ],
             theme,
         )
     };

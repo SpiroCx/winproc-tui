@@ -555,7 +555,12 @@ fn shortcut_spans(app: &App, width: u16, theme: Theme) -> Vec<Span<'static>> {
     {
         vec![("←/→", "tabs"), ("↑/↓", "scroll"), ("Esc", "close")]
     } else if app.process_info_focus == ProcessInfoFocus::Tabs {
-        vec![("←/→", "tabs"), ("Tab", "next"), ("Esc", "close")]
+        let mut keys = vec![("←/→", "tabs"), ("Tab", "next"), ("Esc", "close")];
+        if app.process_info_tab == ProcessInfoTab::Environment && !app.process_info_detail_is_open()
+        {
+            keys.insert(0, ("/", "filter"));
+        }
+        keys
     } else if app.process_info_detail_is_open() {
         let copy_label = match app.process_info_tab {
             ProcessInfoTab::Dlls => "copy path",
@@ -625,9 +630,10 @@ fn shortcut_spans(app: &App, width: u16, theme: Theme) -> Vec<Span<'static>> {
                 ("Esc", "close"),
             ],
             ProcessInfoTab::Environment => vec![
+                ("/", "filter"),
                 ("Enter", "details"),
                 ("Ctrl+U", "refresh"),
-                ("Ctrl+C", "copy variable"),
+                ("Ctrl+C", "copy"),
                 ("↑/↓", "select"),
                 ("Ctrl+←/→", "tabs"),
                 ("Tab", "next"),

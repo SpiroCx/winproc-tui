@@ -695,12 +695,10 @@ fn narrow_process_info_footer_keeps_dynamic_tab_primary_actions() {
 
     app.process_info_tab = app::ProcessInfoTab::Environment;
     let environment = render_app_to_text(&app, screen.width, screen.height);
+    assert!(environment.contains("/ filter"), "{environment}");
     assert!(environment.contains("Enter details"), "{environment}");
     assert!(environment.contains("Ctrl+U refresh"), "{environment}");
-    assert!(
-        environment.contains("Ctrl+C copy variable"),
-        "{environment}"
-    );
+    assert!(environment.contains("Ctrl+C copy"), "{environment}");
 }
 
 #[test]
