@@ -39,308 +39,6 @@ fn start_recording(app: &mut App, label: &str) -> PathBuf {
 }
 
 #[test]
-fn menu_uses_the_exact_activity_specific_item_sets() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    assert_eq!(
-        menu_labels(&app),
-        vec![
-            "Profile ▸",
-            "Columns",
-            "View ▸",
-            "Investigate ▸",
-            "Start Recording",
-            "Log ▸",
-            "Appearance: Green ▸",
-            "Config ▸",
-            "Help",
-            "Quit"
-        ]
-    );
-    assert_eq!(app.main_menu_selected, 0);
-    assert!(
-        !menu_labels(&app)
-            .iter()
-            .any(|label| label.contains("Settings"))
-    );
-    assert!(menu_labels(&app).iter().all(|label| !label.contains("...")));
-
-    app.dismiss_main_menu();
-    let path = start_recording(&mut app, "main-menu-items");
-    press(&mut app, KeyCode::Esc);
-    assert_eq!(
-        menu_labels(&app),
-        vec![
-            "Profile ▸",
-            "Columns",
-            "View ▸",
-            "Investigate ▸",
-            "Stop Recording",
-            "Appearance: Green ▸",
-            "Config ▸",
-            "Help",
-            "Quit"
-        ]
-    );
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::Right);
-    assert_eq!(
-        menu_labels(&app),
-        vec![
-            "Profile ▾",
-            "Open",
-            "Columns",
-            "View ▸",
-            "Investigate ▸",
-            "Stop Recording",
-            "Appearance: Green ▸",
-            "Config ▸",
-            "Help",
-            "Quit"
-        ]
-    );
-    assert!(!menu_labels(&app).iter().any(|label| label == "Save"));
-    press(&mut app, KeyCode::Left);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Right);
-    assert!(
-        menu_labels(&app)
-            .iter()
-            .any(|label| label == "[ ] Tree view")
-    );
-    app.dismiss_main_menu();
-    app.stop_recording().unwrap();
-    let _ = std::fs::remove_file(path);
-
-    app.log_view_path = Some(PathBuf::from("C:/logs/example.log"));
-    press(&mut app, KeyCode::Esc);
-    assert_eq!(
-        menu_labels(&app),
-        vec![
-            "Profile ▸",
-            "Columns",
-            "View ▸",
-            "Investigate ▸",
-            "Log ▸",
-            "Appearance: Green ▸",
-            "Config ▸",
-            "Help",
-            "Quit"
-        ]
-    );
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::Right);
-    assert_eq!(menu_labels(&app)[1], "Open");
-    assert!(!menu_labels(&app).iter().any(|label| label == "Save"));
-}
-
-#[test]
-fn menu_expands_profile_and_toggles_view_checkboxes_inline() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Right);
-
-    assert_eq!(app.main_menu_selected, 1);
-    assert_eq!(
-        menu_labels(&app),
-        vec![
-            "Profile ▾",
-            "Open",
-            "Save",
-            "Save As",
-            "Columns",
-            "View ▸",
-            "Investigate ▸",
-            "Start Recording",
-            "Log ▸",
-            "Appearance: Green ▸",
-            "Config ▸",
-            "Help",
-            "Quit"
-        ]
-    );
-
-    press(&mut app, KeyCode::Up);
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::Right);
-    assert_eq!(app.main_menu_selected, 1);
-    assert_eq!(menu_labels(&app)[0], "Profile ▾");
-
-    press(&mut app, KeyCode::Left);
-    assert_eq!(app.main_menu_selected, 0);
-    assert_eq!(menu_labels(&app)[0], "Profile ▸");
-
-    press(&mut app, KeyCode::Enter);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Enter);
-    assert!(!app.is_main_menu_open());
-    assert!(matches!(
-        app.investigation_profiles_view(),
-        Some(InvestigationProfilesView::NameInput { .. })
-    ));
-    app.close_investigation_profiles();
-
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Right);
-    assert_eq!(app.main_menu_selected, 3);
-    assert_eq!(menu_labels(&app)[3], "[ ] Tracked-only");
-    assert_eq!(menu_labels(&app)[4], "[ ] Tree view");
-    press(&mut app, KeyCode::Char(' '));
-    assert!(app.watch_enabled);
-    assert!(app.is_main_menu_open());
-    assert_eq!(menu_labels(&app)[3], "[x] Tracked-only");
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Char(' '));
-    assert_eq!(app.process_view_mode, ProcessViewMode::Tree);
-    assert!(app.is_main_menu_open());
-    press(&mut app, KeyCode::Esc);
-
-    app.log_view_path = Some(PathBuf::from("C:/logs/example.log"));
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Right);
-    assert_eq!(menu_labels(&app)[3], "[x] Tracked-only");
-    assert!(!menu_labels(&app).iter().any(|label| label == "Tree view"));
-    assert!(
-        !menu_labels(&app)
-            .iter()
-            .any(|label| label.contains("Tree view"))
-    );
-}
-
-#[test]
-fn menu_keeps_multiple_parents_expanded_and_left_collapses_the_selected_parent() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Right);
-
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "View ▸")
-        .expect("View parent");
-    press(&mut app, KeyCode::Right);
-    assert!(menu_labels(&app).iter().any(|label| label == "Profile ▾"));
-    assert!(menu_labels(&app).iter().any(|label| label == "View ▾"));
-
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "Log ▸")
-        .expect("Log parent");
-    press(&mut app, KeyCode::Right);
-    assert!(menu_labels(&app).iter().any(|label| label == "Profile ▾"));
-    assert!(menu_labels(&app).iter().any(|label| label == "View ▾"));
-    assert!(menu_labels(&app).iter().any(|label| label == "Log ▾"));
-
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "View ▾")
-        .expect("expanded View parent");
-    press(&mut app, KeyCode::Left);
-    assert_eq!(menu_labels(&app)[app.main_menu_selected], "View ▸");
-    assert!(menu_labels(&app).iter().any(|label| label == "Profile ▾"));
-    assert!(menu_labels(&app).iter().any(|label| label == "Log ▾"));
-}
-
-#[test]
-fn menu_routes_profiles_and_columns_to_existing_dialogs() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Enter);
-    press(&mut app, KeyCode::Enter);
-    assert!(app.investigation_profiles_view().is_some());
-    app.close_investigation_profiles();
-
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Enter);
-    assert!(app.show_column_picker);
-    press(&mut app, KeyCode::Esc);
-    assert!(!app.show_column_picker);
-    assert!(!app.is_main_menu_open());
-}
-
-#[test]
-fn menu_config_opens_startup_behavior() {
-    let mut app = make_test_app(1, 10);
-    app.open_main_menu();
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "Config ▸")
-        .expect("Config parent");
-
-    press(&mut app, KeyCode::Enter);
-    assert_eq!(
-        menu_labels(&app)[app.main_menu_selected],
-        "Startup Behavior"
-    );
-    press(&mut app, KeyCode::Enter);
-
-    assert!(!app.is_main_menu_open());
-    assert!(matches!(
-        app.investigation_profiles_view(),
-        Some(InvestigationProfilesView::Startup { .. })
-    ));
-    let rendered = render_app_to_text(&app, 100, 45);
-    assert!(rendered.contains("STARTUP BEHAVIOR"), "{rendered}");
-    press(&mut app, KeyCode::Esc);
-    assert!(app.investigation_profiles_dialog.is_none());
-}
-
-#[test]
-fn escape_opens_and_closes_menu_without_quitting_or_leaving_log_view() {
-    let mut app = make_test_app(1, 10);
-    app.log_view_path = Some(PathBuf::from("C:/logs/example.log"));
-
-    press(&mut app, KeyCode::Esc);
-    assert!(app.is_main_menu_open());
-    assert_eq!(app.activity(), AppActivity::LogView);
-    assert!(!app.show_quit_confirmation);
-
-    press(&mut app, KeyCode::Esc);
-    assert!(!app.is_main_menu_open());
-    assert_eq!(app.activity(), AppActivity::LogView);
-    assert!(!app.show_quit_confirmation);
-}
-
-#[test]
-fn menu_navigation_and_actions_reuse_existing_flows() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::End);
-    assert_eq!(app.main_menu_selected, 9);
-    press(&mut app, KeyCode::Home);
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::Up);
-    assert_eq!(app.main_menu_selected, 9);
-    press(&mut app, KeyCode::Down);
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::End);
-    press(&mut app, KeyCode::Down);
-    assert_eq!(app.main_menu_selected, 0);
-    press(&mut app, KeyCode::End);
-    press(&mut app, KeyCode::Up);
-    assert_eq!(app.main_menu_selected, 8);
-    press(&mut app, KeyCode::Enter);
-    assert!(!app.is_main_menu_open());
-    assert!(app.show_help);
-
-    press(&mut app, KeyCode::Esc);
-    assert!(!app.show_help);
-    assert!(!app.is_main_menu_open());
-
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Char('q'));
-    assert!(!app.is_main_menu_open());
-    assert!(!app.show_quit_confirmation);
-    assert!(app.should_quit);
-}
-
-#[test]
 fn menu_quit_is_immediate_in_live_and_log_view_but_confirms_recording() {
     for log_view in [false, true] {
         let mut app = make_test_app(1, 10);
@@ -427,58 +125,6 @@ fn menu_quit_mouse_event_exits_live_and_log_view_but_confirms_recording() {
 }
 
 #[test]
-fn menu_routes_activity_transitions_and_confirmations() {
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Enter);
-    assert!(app.show_recording_no_tracked_warning);
-    assert!(!app.is_main_menu_open());
-    press(&mut app, KeyCode::Esc);
-
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Right);
-    press(&mut app, KeyCode::Enter);
-    assert!(app.show_log_list);
-    assert!(!app.is_main_menu_open());
-    app.close_log_list();
-
-    app.log_view_path = Some(PathBuf::from("C:/logs/example.log"));
-    press(&mut app, KeyCode::Esc);
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "Log ▸")
-        .unwrap();
-    press(&mut app, KeyCode::Right);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Enter);
-    assert_eq!(app.activity(), AppActivity::Live);
-    assert!(!app.is_main_menu_open());
-
-    let path = start_recording(&mut app, "main-menu-stop");
-    press(&mut app, KeyCode::Esc);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Down);
-    press(&mut app, KeyCode::Enter);
-    assert!(app.show_recording_stop_confirmation);
-    assert_eq!(app.activity(), AppActivity::Recording);
-    press(&mut app, KeyCode::Enter);
-    assert_eq!(app.activity(), AppActivity::Recording);
-    app.stop_recording().unwrap();
-    let _ = std::fs::remove_file(path);
-}
-
-#[test]
 fn existing_modal_and_editing_escape_handlers_do_not_open_menu() {
     let mut app = make_test_app(1, 10);
     app.show_help = true;
@@ -500,253 +146,6 @@ fn existing_modal_and_editing_escape_handlers_do_not_open_menu() {
     press(&mut app, KeyCode::Esc);
     assert!(!app.is_process_jump_editing());
     assert!(!app.is_main_menu_open());
-}
-
-#[test]
-fn menu_keeps_compact_navigation_guidance_and_hover_style() {
-    let screen = Rect::new(0, 0, 80, 24);
-    let mut app = make_test_app(1, 10);
-    press(&mut app, KeyCode::Esc);
-
-    let rendered = render_app_to_text(&app, screen.width, screen.height);
-    assert!(rendered.contains("[MENU]"), "{rendered}");
-    assert!(rendered.contains("↑/↓ Select"), "{rendered}");
-    assert!(!rendered.contains("Settings"), "{rendered}");
-    let popup = main_menu_area(screen, &app);
-    assert_eq!(popup.x, screen.x);
-    assert_eq!(popup.y, screen.y.saturating_add(1));
-    assert_eq!(popup.height, app.main_menu_rows().len() as u16 + 4);
-    let collapsed_width = popup.width;
-    let selected = main_menu_item_area(screen, &app, 0).expect("selected row");
-    let title_row = Rect::new(popup.x, popup.y, popup.width, 1);
-    for (theme_index, theme) in ui::THEMES.iter().copied().enumerate() {
-        app.theme_index = theme_index;
-        let selected_buffer = render_app_to_buffer(&app, screen.width, screen.height);
-        for x in selected.x..selected.right() {
-            assert_eq!(
-                selected_buffer[(x, selected.y)].bg,
-                theme.table_selection_surface,
-                "theme={theme_index}, x={x}"
-            );
-            assert_ne!(
-                selected_buffer[(x, selected.y)].bg,
-                theme.highlight,
-                "theme={theme_index}, x={x}"
-            );
-        }
-        for x in title_row.x.saturating_add(1)..title_row.right().saturating_sub(1) {
-            assert_eq!(
-                selected_buffer[(x, title_row.y)].symbol(),
-                "━",
-                "theme={theme_index}, x={x}"
-            );
-        }
-        for (label, key) in [
-            ("Columns", "c"),
-            ("Start Recording", "Ctrl+R"),
-            ("Help", "F1"),
-            ("Quit", "q"),
-        ] {
-            let index = menu_labels(&app)
-                .iter()
-                .position(|item| item == label)
-                .expect("shortcut row");
-            for (selected_index, hovered_index, background, bold) in [
-                (0, None, theme.panel_alt, false),
-                (index, None, theme.table_selection_surface, true),
-                (0, Some(index), theme.focus_surface, true),
-            ] {
-                app.main_menu_selected = selected_index;
-                app.main_menu_hovered = hovered_index;
-                let buffer = render_app_to_buffer(&app, screen.width, screen.height);
-                let row = main_menu_item_area(screen, &app, index).expect("shortcut row area");
-                let key_x = row.x + 2 + label.len() as u16 + 2;
-                for x in row.x..row.right() {
-                    let cell = &buffer[(x, row.y)];
-                    let expected_color = if (key_x..key_x + key.len() as u16).contains(&x) {
-                        theme.key_hint
-                    } else {
-                        theme.text
-                    };
-                    assert_eq!(
-                        cell.fg, expected_color,
-                        "theme={theme_index}, {label}, x={x}"
-                    );
-                    assert_eq!(cell.bg, background, "theme={theme_index}, {label}, x={x}");
-                    assert_eq!(cell.modifier.contains(Modifier::BOLD), bold);
-                }
-            }
-        }
-        app.main_menu_selected = 0;
-        app.main_menu_hovered = None;
-    }
-
-    app.theme_index = 0;
-    press(&mut app, KeyCode::Right);
-    assert_eq!(main_menu_area(screen, &app).width, collapsed_width);
-    let expanded_buffer = render_app_to_buffer(&app, screen.width, screen.height);
-    let (key_x, key_y) = find_text_position(&expanded_buffer, "Ctrl+T").expect("Profile shortcut");
-    assert_eq!(expanded_buffer[(key_x, key_y)].fg, app.theme().key_hint);
-    assert_eq!(
-        expanded_buffer[(key_x, key_y)].bg,
-        app.theme().table_selection_surface
-    );
-    press(&mut app, KeyCode::Left);
-    let large_screen = Rect::new(0, 0, 100, 45);
-    let large_popup = main_menu_area(large_screen, &app);
-    let large_buffer = render_app_to_buffer(&app, large_screen.width, large_screen.height);
-    assert_eq!(
-        large_buffer[(large_popup.x, large_popup.y)].fg,
-        app.theme().focus_border
-    );
-
-    app.on_mouse(mouse_move(selected.x, selected.y), screen);
-    let selected_hovered = render_app_to_buffer(&app, screen.width, screen.height);
-    assert_eq!(
-        selected_hovered[(selected.x, selected.y)].bg,
-        app.theme().table_selection_surface
-    );
-
-    let help_index = menu_labels(&app)
-        .iter()
-        .position(|label| label == "Help")
-        .expect("Help index");
-    let help = main_menu_item_area(screen, &app, help_index).expect("Help row");
-    app.on_mouse(mouse_move(help.x, help.y), screen);
-    assert_eq!(app.main_menu_hovered, Some(help_index));
-    let hovered = render_app_to_buffer(&app, screen.width, screen.height);
-    assert_eq!(hovered[(help.x, help.y)].bg, app.theme().focus_surface);
-    assert!(hovered[(help.x, help.y)].modifier.contains(Modifier::BOLD));
-
-    app.on_mouse(left_click(help.x, help.y), screen);
-    assert!(!app.is_main_menu_open());
-    assert!(app.show_help);
-}
-
-#[test]
-fn menu_parents_expand_and_children_activate_with_the_mouse() {
-    let screen = Rect::new(0, 0, 80, 24);
-    let mut app = make_test_app(1, 10);
-    app.open_main_menu();
-
-    let profile = main_menu_item_area(screen, &app, 0).expect("Profile row");
-    app.on_mouse(left_click(profile.x, profile.y), screen);
-    assert_eq!(menu_labels(&app)[0], "Profile ▾");
-    assert_eq!(app.main_menu_selected, 1);
-
-    let open = main_menu_item_area(screen, &app, 1).expect("Open child row");
-    app.on_mouse(left_click(open.x, open.y), screen);
-    assert!(!app.is_main_menu_open());
-    assert!(app.investigation_profiles_view().is_some());
-    app.close_investigation_profiles();
-
-    app.open_main_menu();
-    let profile = main_menu_item_area(screen, &app, 0).expect("Profile row");
-    app.on_mouse(left_click(profile.x, profile.y), screen);
-    let profile = main_menu_item_area(screen, &app, 0).expect("expanded Profile row");
-    app.on_mouse(left_click(profile.x, profile.y), screen);
-    assert_eq!(menu_labels(&app)[0], "Profile ▸");
-    assert_eq!(app.main_menu_selected, 0);
-
-    let view_index = menu_labels(&app)
-        .iter()
-        .position(|label| label == "View ▸")
-        .expect("View parent index");
-    let view = main_menu_item_area(screen, &app, view_index).expect("View row");
-    app.on_mouse(left_click(view.x, view.y), screen);
-    let tracked_only_index = menu_labels(&app)
-        .iter()
-        .position(|label| label == "[ ] Tracked-only")
-        .expect("Tracked-only child index");
-    let tracked_only =
-        main_menu_item_area(screen, &app, tracked_only_index).expect("Tracked-only row");
-    app.on_mouse(left_click(tracked_only.x, tracked_only.y), screen);
-    assert!(app.watch_enabled);
-    assert!(app.is_main_menu_open());
-    assert_eq!(menu_labels(&app)[tracked_only_index], "[x] Tracked-only");
-}
-
-#[test]
-fn header_menu_button_uses_shared_geometry_hover_and_opening() {
-    let screen = Rect::new(0, 0, 80, 24);
-    let mut app = make_test_app(1, 10);
-    let button = ui::header_menu_area_for_screen(screen, &app).expect("header MENU button");
-
-    let rendered = render_app_to_text(&app, screen.width, screen.height);
-    assert!(rendered.contains("LIVE"), "{rendered}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
-    assert_eq!(button.x, screen.x);
-    let buffer = render_app_to_buffer(&app, screen.width, screen.height);
-    let (menu_x, menu_y) = find_text_position(&buffer, "[MENU]").expect("menu label position");
-    let (live_x, live_y) = find_text_position(&buffer, "LIVE").expect("activity position");
-    assert_eq!((menu_x, menu_y), (screen.x, screen.y));
-    assert_eq!(live_y, screen.y);
-    assert!(live_x >= button.right());
-
-    app.on_mouse(mouse_move(button.x, button.y), screen);
-    assert!(app.header_menu_hovered);
-    let hovered = render_app_to_buffer(&app, screen.width, screen.height);
-    assert_eq!(hovered[(button.x, button.y)].bg, app.theme().focus_surface);
-    assert!(
-        hovered[(button.x, button.y)]
-            .modifier
-            .contains(Modifier::BOLD)
-    );
-
-    app.on_mouse(left_click(button.x, button.y), screen);
-    assert!(app.is_main_menu_open());
-    assert_eq!(app.main_menu_selected, 0);
-    let active = render_app_to_buffer(&app, screen.width, screen.height);
-    assert_eq!(
-        active[(button.x, button.y)].bg,
-        app.theme().table_selection_surface
-    );
-}
-
-#[test]
-fn menu_hit_testing_uses_only_visible_item_rows() {
-    let screen = Rect::new(0, 0, 80, 24);
-    let mut app = make_test_app(1, 10);
-    app.open_main_menu();
-    let popup = main_menu_area(screen, &app);
-    let selected_before = app.main_menu_selected;
-
-    assert!(ui::main_menu_index_at(screen, &app, popup.x, popup.y).is_none());
-    app.on_mouse(left_click(popup.x, popup.y), screen);
-    assert!(app.is_main_menu_open());
-    assert_eq!(app.main_menu_selected, selected_before);
-
-    app.activate_main_menu_at(usize::MAX).unwrap();
-    assert!(app.is_main_menu_open());
-    assert!(!app.should_quit);
-}
-
-#[test]
-fn expanded_menu_remains_usable_on_a_narrow_screen() {
-    let screen = Rect::new(0, 0, 24, 20);
-    let mut app = make_test_app(1, 10);
-    app.open_main_menu();
-    press(&mut app, KeyCode::Right);
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "View ▸")
-        .expect("View parent");
-    press(&mut app, KeyCode::Right);
-    app.main_menu_selected = menu_labels(&app)
-        .iter()
-        .position(|label| label == "Log ▸")
-        .expect("Log parent");
-    press(&mut app, KeyCode::Right);
-
-    let rendered = render_app_to_text(&app, screen.width, screen.height);
-    assert!(rendered.contains("MENU"), "{rendered}");
-    assert!(rendered.contains("Profile"), "{rendered}");
-    assert!(rendered.contains("Open"), "{rendered}");
-    assert!(rendered.contains("View"), "{rendered}");
-    assert!(rendered.contains("Tracked-only"), "{rendered}");
-    assert!(rendered.contains("Log"), "{rendered}");
-    assert!(rendered.contains("Open"), "{rendered}");
-    assert!(app.main_menu_selected < app.main_menu_rows().len());
 }
 
 #[test]
@@ -773,48 +172,366 @@ fn menu_does_not_block_sampling_or_recording_frame_writes() {
     assert_eq!(request_rx.try_recv(), Err(TryRecvError::Empty));
 }
 
-#[test]
-fn appearance_choices_apply_only_on_activation_and_keep_current_markers() {
-    use crate::app::state::{MainMenuAction, MainMenuItem, MainMenuSection};
-    let mut app = make_test_app(1, 10);
-    let screen = Rect::new(0, 0, 180, 60);
-    let buffer = render_app_to_buffer(&app, 180, 60);
-    let (x, y) = find_text_position(&buffer, "[Appearance]").unwrap();
-    app.on_mouse(left_click(x, y), screen);
-    assert!(
-        app.main_menu_expanded
-            .contains(&MainMenuSection::Appearance)
-    );
-    for index in 0..4 {
-        let row = app
-            .main_menu_rows()
-            .iter()
-            .position(|row| row.item == MainMenuItem::Action(MainMenuAction::SetTheme(index)))
-            .unwrap();
-        let original = app.theme_index;
-        app.main_menu_selected = row;
-        let area = main_menu_item_area(screen, &app, row).unwrap();
-        app.on_mouse(mouse_move(area.x, area.y), screen);
-        assert_eq!(app.theme_index, original);
-        app.on_mouse(left_click(area.x, area.y), screen);
-        assert_eq!(app.theme_index, index);
-        assert!(app.is_main_menu_open());
-        assert!(
-            menu_labels(&app)
-                .iter()
-                .any(|label| label == &format!("(*) {}", app.theme().name))
-        );
-    }
-    let row = app
+use crate::app::state::{MainMenuAction, MainMenuItem, MainMenuSection};
+use crate::ui::header::HeaderAction;
+
+fn alt(app: &mut App, ch: char) {
+    app.on_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::ALT))
+        .unwrap();
+}
+fn choose(app: &mut App, action: MainMenuAction) {
+    app.main_menu_selected = app
         .main_menu_rows()
         .iter()
-        .position(|row| row.item == MainMenuItem::Action(MainMenuAction::ToggleContrast))
+        .position(|row| row.item == MainMenuItem::Action(action))
+        .expect("menu action");
+    press(app, KeyCode::Enter);
+}
+
+#[test]
+fn categories_contain_only_their_own_activity_specific_actions() {
+    let mut app = make_test_app(1, 10);
+    app.open_main_menu();
+    assert_eq!(menu_labels(&app), ["Start Recording", "Open log", "Quit"]);
+    alt(&mut app, 'p');
+    assert_eq!(menu_labels(&app), ["Open", "Save", "Save As"]);
+    alt(&mut app, 'v');
+    assert_eq!(menu_labels(&app).len(), 7);
+    assert!(menu_labels(&app).contains(&"Columns".to_string()));
+    assert!(!menu_labels(&app).contains(&"Quit".to_string()));
+    alt(&mut app, 't');
+    assert_eq!(menu_labels(&app).len(), 6);
+    assert_eq!(menu_labels(&app).last().unwrap(), "Startup Behavior");
+    app.dismiss_main_menu();
+    let path = start_recording(&mut app, "menu-categories");
+    app.open_main_menu();
+    assert_eq!(menu_labels(&app), ["Stop Recording", "Quit"]);
+    alt(&mut app, 'p');
+    assert_eq!(menu_labels(&app), ["Open"]);
+    app.dismiss_main_menu();
+    app.stop_recording().unwrap();
+    let _ = std::fs::remove_file(path);
+    app.log_view_path = Some(PathBuf::from("example.log"));
+    app.open_main_menu();
+    assert_eq!(menu_labels(&app), ["Open log", "Return to Live", "Quit"]);
+    alt(&mut app, 'v');
+    assert!(!menu_labels(&app).iter().any(|label| label.contains("Tree")));
+}
+
+#[test]
+fn menu_routes_existing_dialogs_and_activity_transitions() {
+    let mut app = make_test_app(1, 10);
+    alt(&mut app, 'p');
+    choose(&mut app, MainMenuAction::OpenProfiles);
+    assert!(app.investigation_profiles_dialog.is_some());
+    assert!(!app.is_main_menu_open());
+    app.close_investigation_profiles();
+    alt(&mut app, 'v');
+    choose(&mut app, MainMenuAction::OpenColumns);
+    assert!(app.show_column_picker);
+    app.close_column_picker();
+    alt(&mut app, 't');
+    choose(&mut app, MainMenuAction::OpenStartupBehavior);
+    assert!(matches!(
+        app.investigation_profiles_view(),
+        Some(InvestigationProfilesView::Startup { .. })
+    ));
+    app.close_investigation_profiles();
+    alt(&mut app, 's');
+    choose(&mut app, MainMenuAction::StartRecording);
+    assert!(app.show_recording_no_tracked_warning);
+    press(&mut app, KeyCode::Esc);
+    alt(&mut app, 's');
+    choose(&mut app, MainMenuAction::OpenLog);
+    assert!(app.show_log_list);
+    app.close_log_list();
+    app.log_view_path = Some(PathBuf::from("example.log"));
+    alt(&mut app, 's');
+    choose(&mut app, MainMenuAction::ReturnToLive);
+    assert_eq!(app.activity(), AppActivity::Live);
+    let path = start_recording(&mut app, "menu-stop");
+    alt(&mut app, 's');
+    choose(&mut app, MainMenuAction::StopRecording);
+    assert!(app.show_recording_stop_confirmation);
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.activity(), AppActivity::Recording);
+    app.stop_recording().unwrap();
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn menu_arrows_switch_categories_and_restore_workspace_focus() {
+    let mut app = make_test_app(1, 10);
+    let focus = app.focused_panel;
+    press(&mut app, KeyCode::Esc);
+    press(&mut app, KeyCode::Right);
+    assert_eq!(app.main_menu_section, MainMenuSection::Profile);
+    press(&mut app, KeyCode::Up);
+    assert_eq!(app.main_menu_selected, 2);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.main_menu_selected, 0);
+    press(&mut app, KeyCode::Left);
+    assert_eq!(app.main_menu_section, MainMenuSection::Session);
+    press(&mut app, KeyCode::Esc);
+    assert!(!app.is_main_menu_open());
+    assert_eq!(app.focused_panel, focus);
+    app.network_browser.visible = true;
+    alt(&mut app, 'v');
+    assert_eq!(app.main_menu_section, MainMenuSection::View);
+    press(&mut app, KeyCode::Esc);
+    assert!(app.network_browser.visible);
+    app.log_view_path = Some(PathBuf::from("example.log"));
+    app.open_main_menu();
+    press(&mut app, KeyCode::Esc);
+    assert_eq!(app.activity(), AppActivity::LogView);
+}
+
+#[test]
+fn menu_access_keys_respect_editors_modals_and_existing_alt_h() {
+    use crate::app::{ProcessPanelHeight, file_users::FileUsersFocus};
+    let mut app = make_test_app(1, 10);
+    for ch in ['s', 'p', 'v', 't'] {
+        app.begin_filter_edit();
+        alt(&mut app, ch);
+        assert!(!app.is_main_menu_open());
+        app.clear_filter();
+        app.open_column_picker();
+        alt(&mut app, ch);
+        assert!(!app.is_main_menu_open());
+        app.close_column_picker();
+        app.on_key(KeyEvent::new(
+            KeyCode::Char(ch),
+            KeyModifiers::CONTROL | KeyModifiers::ALT,
+        ))
         .unwrap();
-    app.activate_main_menu_at(row).unwrap();
+        assert!(!app.is_main_menu_open());
+    }
+    app.show_details = true;
+    app.process_panel_height = ProcessPanelHeight::Auto;
+    alt(&mut app, 'h');
+    assert!(!app.is_main_menu_open());
+    assert_eq!(app.process_panel_height, ProcessPanelHeight::Auto);
+    app.network_browser.visible = true;
+    app.network_browser.editing = true;
+    alt(&mut app, 'p');
+    assert!(!app.is_main_menu_open());
+    app.network_browser.visible = false;
+    app.file_users.visible = true;
+    app.file_users.focus = FileUsersFocus::Query;
+    app.file_users.draft = "draft path".into();
+    alt(&mut app, 'v');
+    assert!(!app.is_main_menu_open());
+    assert_eq!(app.file_users.draft, "draft path");
+    app.activate_header_action(HeaderAction::Session);
+    alt(&mut app, 'p');
+    assert_eq!(app.main_menu_section, MainMenuSection::Profile);
+    assert_eq!(app.file_users.draft, "draft path");
+}
+
+#[test]
+fn checkbox_and_theme_choices_apply_on_activation_without_leaving_menu() {
+    let mut app = make_test_app(1, 10);
+    alt(&mut app, 'v');
+    choose(&mut app, MainMenuAction::ToggleTrackedOnly);
+    assert!(app.watch_enabled);
+    choose(&mut app, MainMenuAction::ToggleTreeView);
+    assert_eq!(app.process_view_mode, ProcessViewMode::Tree);
+    let samples = app.show_samples_panel;
+    choose(&mut app, MainMenuAction::ToggleSamples);
+    assert_ne!(app.show_samples_panel, samples);
+    let layout = app.graph_slot_layout;
+    choose(&mut app, MainMenuAction::CycleGraphLayout);
+    assert_ne!(app.graph_slot_layout, layout);
+    assert!(app.is_main_menu_open());
+    alt(&mut app, 't');
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.theme_index, 0);
+    press(&mut app, KeyCode::Enter);
+    assert_eq!(app.theme_index, 1);
+    choose(&mut app, MainMenuAction::ToggleContrast);
     assert!(app.high_contrast);
-    let before = app.theme_index;
-    app.on_key(KeyEvent::new(KeyCode::F(12), KeyModifiers::NONE))
+    assert!(app.is_main_menu_open());
+}
+
+#[test]
+fn header_geometry_is_stable_and_categories_switch_with_one_click() {
+    for width in [80, 120, 180] {
+        let screen = Rect::new(0, 0, width, 60);
+        let mut app = make_test_app(1, 10);
+        let original = ui::header::header_actions(ui::screen_layout(screen)[0], &app);
+        app.active_investigation_profile = Some("長い日本語のプロファイル名を繰り返す".repeat(10));
+        app.toggle_display_pause();
+        assert_eq!(
+            original,
+            ui::header::header_actions(ui::screen_layout(screen)[0], &app)
+        );
+        let text = render_app_to_text(&app, width, 60);
+        assert!(!text.lines().next().unwrap().contains("MENU"));
+        assert_eq!(original[0].0, HeaderAction::Session);
+        assert_eq!(original[0].1.x, 0);
+        for action in [HeaderAction::Session, HeaderAction::Profile] {
+            let rect = original.iter().find(|(item, _)| *item == action).unwrap().1;
+            app.on_mouse(left_click(rect.x + 1, rect.y), screen);
+            assert!(app.is_main_menu_open());
+            assert_eq!(Some(app.main_menu_section), action.section());
+            assert_eq!(main_menu_area(screen, &app).x, rect.x);
+            app.on_mouse(mouse_move(width - 1, 40), screen);
+            let buffer = render_app_to_buffer(&app, width, 60);
+            assert_eq!(
+                buffer[(rect.x + 1, rect.y)].bg,
+                app.theme().table_selection_surface
+            );
+        }
+        let view = original
+            .iter()
+            .find(|(item, _)| *item == HeaderAction::Profile)
+            .unwrap()
+            .1;
+        app.on_mouse(left_click(view.x, view.y), screen);
+        assert!(!app.is_main_menu_open());
+        app.on_mouse(left_click(view.x, view.y), screen);
+        app.on_mouse(left_click(width - 1, 40), screen);
+        assert!(!app.is_main_menu_open());
+    }
+}
+
+#[test]
+fn overflow_preserves_destinations_and_hidden_access_keys() {
+    let mut app = make_test_app(1, 10);
+    let screen = Rect::new(0, 0, 80, 24);
+    render_app_to_buffer(&app, 80, 24);
+    let actions = ui::header::header_actions(ui::screen_layout(screen)[0], &app);
+    let more = actions
+        .iter()
+        .find(|(action, _)| *action == HeaderAction::More)
+        .unwrap()
+        .1;
+    app.on_mouse(left_click(more.x, more.y), screen);
+    assert!(menu_labels(&app).contains(&"Find processes by file".to_string()));
+    assert!(!menu_labels(&app).contains(&"Quit".to_string()));
+    assert!(
+        !actions
+            .iter()
+            .any(|(action, _)| *action == HeaderAction::Settings)
+    );
+    alt(&mut app, 't');
+    assert_eq!(app.main_menu_section, MainMenuSection::Settings);
+    let popup = main_menu_area(screen, &app);
+    assert!(popup.right() <= screen.right());
+    app.close_main_menu();
+    app.activate_header_action(HeaderAction::More);
+    app.main_menu_selected = app
+        .main_menu_rows()
+        .iter()
+        .position(|row| row.item == MainMenuItem::Header(HeaderAction::FileUsers))
         .unwrap();
-    assert_eq!(app.theme_index, (before + 1) % 4);
-    assert!(app.high_contrast);
+    press(&mut app, KeyCode::Enter);
+    assert!(app.file_users.visible);
+    assert!(app.file_users.pending.is_none());
+    assert!(render_app_to_text(&app, 80, 24).contains("PROCESSES USING FILE"));
+}
+
+#[test]
+fn menu_shortcuts_align_and_preserve_semantic_colors_and_hover() {
+    let mut app = make_test_app(1, 10);
+    let screen = Rect::new(0, 0, 120, 60);
+    for (theme_index, theme) in ui::THEMES.iter().copied().enumerate() {
+        app.theme_index = theme_index;
+        alt(&mut app, 'p');
+        app.main_menu_selected = 1;
+        let buffer = render_app_to_buffer(&app, 120, 60);
+        let (x1, y1) = find_text_position(&buffer, "Ctrl+T").unwrap();
+        let (x2, y2) = find_text_position(&buffer, "Ctrl+Shift+S").unwrap();
+        assert_eq!(x1 + 6, x2 + 12);
+        assert_eq!(buffer[(x1, y1)].fg, theme.key_hint);
+        let row = main_menu_item_area(screen, &app, 0).unwrap();
+        app.on_mouse(mouse_move(row.x, row.y), screen);
+        let hover = render_app_to_buffer(&app, 120, 60);
+        assert_eq!(hover[(x1, y1)].bg, theme.focus_surface);
+        assert_eq!(hover[(x1, y1)].fg, theme.key_hint);
+        assert!(hover[(x1, y1)].modifier.contains(Modifier::BOLD));
+        assert_eq!(buffer[(x2, y2)].fg, theme.key_hint);
+        let heading = ui::header::header_actions(ui::screen_layout(screen)[0], &app)
+            .into_iter()
+            .find(|(a, _)| *a == HeaderAction::Profile)
+            .unwrap()
+            .1;
+        assert!(
+            buffer[(heading.x + 1, 0)]
+                .modifier
+                .contains(Modifier::UNDERLINED)
+        );
+    }
+}
+
+#[test]
+fn menu_hit_testing_scrolls_to_selected_items_on_short_screens() {
+    let mut app = make_test_app(1, 10);
+    alt(&mut app, 'v');
+    press(&mut app, KeyCode::End);
+    let screen = Rect::new(0, 0, 80, 9);
+    render_app_to_buffer(&app, screen.width, screen.height);
+    let row = main_menu_item_area(screen, &app, app.main_menu_selected).unwrap();
+    assert_eq!(
+        ui::main_menu_index_at(screen, &app, row.x, row.y),
+        Some(app.main_menu_selected)
+    );
+    let popup = main_menu_area(screen, &app);
+    assert_eq!(ui::main_menu_index_at(screen, &app, popup.x, popup.y), None);
+    assert_eq!(
+        ui::main_menu_index_at(screen, &app, popup.x + 2, popup.bottom() - 2),
+        None
+    );
+}
+
+#[test]
+fn menu_rejects_actions_after_activity_changes() {
+    let mut app = make_test_app(1, 10);
+    alt(&mut app, 'p');
+    app.log_view_path = Some(PathBuf::from("example.log"));
+    press(&mut app, KeyCode::Enter);
+    assert!(!app.is_main_menu_open());
+    assert!(app.investigation_profiles_dialog.is_none());
+}
+
+#[test]
+fn menu_mouse_opening_keeps_filter_draft_and_takes_keyboard_priority() {
+    let mut app = make_test_app(1, 10);
+    app.begin_filter_edit();
+    app.push_filter_char('x');
+    app.activate_header_action(HeaderAction::Session);
+    press(&mut app, KeyCode::Right);
+    assert_eq!(app.main_menu_section, MainMenuSection::Profile);
+    press(&mut app, KeyCode::Down);
+    assert_eq!(app.main_menu_selected, 1);
+    press(&mut app, KeyCode::Esc);
+    assert!(!app.is_main_menu_open());
+    assert!(app.is_filter_editing());
+    assert_eq!(app.filter_draft, "x");
+}
+
+#[test]
+fn overflow_resize_dismisses_before_rows_can_change_targets() {
+    let mut app = make_test_app(1, 10);
+    let screen = Rect::new(0, 0, 80, 24);
+    crate::app::sync_layout_state(&mut app, screen);
+    render_app_to_buffer(&app, 80, 24);
+    app.activate_header_action(HeaderAction::More);
+    press(&mut app, KeyCode::End);
+    crate::app::sync_layout_state(&mut app, Rect::new(0, 0, 180, 60));
+    assert!(!app.is_main_menu_open());
+    assert!(!app.file_users.visible);
+}
+
+#[test]
+fn narrow_header_keeps_pause_and_stale_status_after_menu_controls() {
+    let mut app = make_test_app(1, 10);
+    app.snapshot.captured_at = chrono::Local::now() - chrono::Duration::seconds(5);
+    app.toggle_display_pause();
+    let text = render_app_to_text(&app, 80, 24);
+    let header = text.lines().next().unwrap();
+    assert!(header.contains("LIVE"), "{header}");
+    assert!(header.contains("STALE"), "{header}");
+    assert!(header.contains("DISPLAY PAUSED"), "{header}");
+    assert!(header.find("More").unwrap() < header.find("LIVE").unwrap());
 }

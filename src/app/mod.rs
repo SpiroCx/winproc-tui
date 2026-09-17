@@ -243,7 +243,6 @@ pub(crate) fn handle_mouse_event(
         app.context_menu.as_ref().and_then(|menu| menu.hovered),
         app.process_disclosure_hovered.clone(),
         app.main_menu_hovered,
-        app.header_menu_hovered,
         app.header_action_hovered,
         app.process_column_control_hovered,
         app.process_panel_resize_hovered,
@@ -260,7 +259,6 @@ pub(crate) fn handle_mouse_event(
                 app.context_menu.as_ref().and_then(|menu| menu.hovered),
                 app.process_disclosure_hovered.clone(),
                 app.main_menu_hovered,
-                app.header_menu_hovered,
                 app.header_action_hovered,
                 app.process_column_control_hovered,
                 app.process_panel_resize_hovered,
@@ -328,6 +326,9 @@ impl LoopTrace {
 pub(crate) fn sync_layout_state(app: &mut App, screen_area: Rect) {
     let resized = app.last_screen_area != screen_area;
     app.set_screen_area(screen_area);
+    if resized && app.is_main_menu_open() && app.main_menu_section == state::MainMenuSection::More {
+        app.close_main_menu();
+    }
     app.cancel_process_panel_resize_if_unavailable();
     app.sync_graph_layout_visibility();
     let panels = main_panel_areas_for_app(screen_area, app);

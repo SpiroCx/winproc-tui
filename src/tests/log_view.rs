@@ -500,7 +500,7 @@ fn log_view_header_shows_log_badge_and_path_without_freshness() {
     let (_, log_y) = find_text_position(&buffer, "LOG").expect("log badge should be rendered");
 
     assert!(rendered.contains("LOG"), "{rendered}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
+    assert!(rendered.contains("Session ▾"), "{rendered}");
     assert!(rendered.contains("PF: --"), "{rendered}");
     let (profile_x, profile_y) =
         find_text_position(&buffer, "PF: --").expect("profile badge should render");
@@ -509,9 +509,12 @@ fn log_view_header_shows_log_badge_and_path_without_freshness() {
     assert_eq!(log_y, 0);
     assert!(!rendered.contains("fresh"), "{rendered}");
     assert!(!rendered.contains("STALE"), "{rendered}");
-    assert!(rendered.contains("winproc-tui-demo.log"), "{rendered}");
     assert!(
-        rendered.contains(&format!("winproc-tui {}", env!("CARGO_PKG_VERSION"))),
+        rendered.contains("winproc-t") && rendered.contains("-demo.log"),
+        "{rendered}"
+    );
+    assert!(
+        !rendered.contains(&format!("winproc-tui {}", env!("CARGO_PKG_VERSION"))),
         "{rendered}"
     );
 }
@@ -523,11 +526,11 @@ fn log_view_header_keeps_the_filename_suffix_and_hides_product_at_narrow_width()
     let product_and_version = format!("winproc-tui {}", env!("CARGO_PKG_VERSION"));
     app.log_view_path = Some(std::path::PathBuf::from(path));
 
-    let rendered = render_app_to_text(&app, 40, 20);
+    let rendered = render_app_to_text(&app, 80, 20);
     let header = rendered.lines().next().expect("header row");
 
     assert!(rendered.contains("LOG"), "{rendered}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
+    assert!(rendered.contains("Session ▾"), "{rendered}");
     assert!(!rendered.contains(path), "{rendered}");
     assert!(header.contains(".log"), "{header}");
     assert!(!rendered.contains(&product_and_version), "{rendered}");

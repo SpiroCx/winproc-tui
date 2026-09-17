@@ -40,11 +40,11 @@ struct HelpSection {
 
 const FILE_USERS_ROWS: &[HelpItem] = &[
     HelpItem {
-        key: "Menu: Investigate",
-        label: "Network / Find file users; also in header (Live/REC)",
+        key: "F3 / F4 or header",
+        label: "Network / Find processes by file; also in header (Live/REC)",
     },
     HelpItem {
-        key: "Find file users: Tab/Shift+Tab",
+        key: "Find processes by file: Tab/Shift+Tab",
         label: "Focus Query, Mode, or Results",
     },
     HelpItem {
@@ -71,6 +71,10 @@ const FILE_USERS_ROWS: &[HelpItem] = &[
 
 const GLOBAL_ROWS: &[HelpItem] = &[
     HelpItem {
+        key: "Alt+S/P/V/T",
+        label: "Session / Profile / View / Settings menus",
+    },
+    HelpItem {
         key: "Menu / Shift+F10",
         label: "Context actions for selected object; Esc or outside click closes",
     },
@@ -79,12 +83,12 @@ const GLOBAL_ROWS: &[HelpItem] = &[
         label: "Run the displayed footer action; hover highlights its full group",
     },
     HelpItem {
-        key: "Click MENU / outside menu",
-        label: "Close menu; confirmations require an explicit footer action",
+        key: "Click heading / outside menu",
+        label: "Toggle/switch category; outside closes; confirmations stay explicit",
     },
     HelpItem {
         key: "F2/F3/F4",
-        label: "Processes / Network / Find file users view",
+        label: "Processes / Network / Find processes by file view",
     },
     HelpItem {
         key: "Ctrl+↑/↓/←/→",
@@ -104,11 +108,11 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "Esc",
-        label: "Open main menu",
+        label: "Open Session menu (Quit is last)",
     },
     HelpItem {
         key: "↑/↓, ←/→, Enter",
-        label: "Navigate main menu hierarchy",
+        label: "Select item, switch menu, activate",
     },
     HelpItem {
         key: "Space",
@@ -120,7 +124,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "F12",
-        label: "Cycle theme; Appearance selects theme and contrast directly",
+        label: "Cycle theme; Settings selects theme and contrast directly",
     },
     HelpItem {
         key: "Tab/Shift+Tab",
@@ -576,8 +580,8 @@ const MOUSE_ROWS: &[HelpItem] = &[
         label: "Resize selected process column",
     },
     HelpItem {
-        key: "Click [MENU]",
-        label: "Open main menu",
+        key: "Click menu heading",
+        label: "Open category; click another heading to switch",
     },
     HelpItem {
         key: "Click panel",
@@ -750,7 +754,7 @@ const LEFT_SECTIONS: &[HelpSection] = &[
         rows: NETWORK_ROWS,
     },
     HelpSection {
-        title: "Find file users",
+        title: "Find processes by file",
         focus_hint: Some("on demand"),
         rows: FILE_USERS_ROWS,
     },

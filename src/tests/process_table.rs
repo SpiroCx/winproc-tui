@@ -567,16 +567,15 @@ fn header_and_footer_roles_apply_to_all_color_schemes() {
         let theme = ui::THEMES[theme_index];
         let buffer = render_app_to_buffer(&app, 100, 30);
 
-        let product_and_version = format!("winproc-tui {}", env!("CARGO_PKG_VERSION"));
-        let (product_x, product_y) = find_text_position(&buffer, &product_and_version)
-            .expect("product and version should render when the header has room");
-        assert_eq!(
-            product_x + product_and_version.len() as u16,
-            buffer.area.width
+        let (session_x, session_y) = find_text_position(&buffer, "Session").expect("leftmost menu");
+        assert_eq!(session_x, 1);
+        assert_eq!(session_y, 0);
+        assert_eq!(buffer[(session_x, session_y)].fg, theme.key_hint);
+        assert!(
+            buffer[(session_x, session_y)]
+                .modifier
+                .contains(ratatui::style::Modifier::UNDERLINED)
         );
-        assert_eq!(product_y, 0);
-        assert_eq!(buffer[(product_x, product_y)].fg, theme.muted);
-        assert_eq!(buffer[(product_x, product_y)].bg, theme.panel);
 
         let (live_x, live_y) =
             find_text_position(&buffer, "LIVE").expect("live badge should be rendered");

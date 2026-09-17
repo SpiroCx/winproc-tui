@@ -529,19 +529,7 @@ fn network_process_detail_scroll_survives_layout_sync_and_uses_own_hit_regions()
 #[test]
 fn network_menu_opens_browser_and_late_owner_result_cannot_reopen_it() {
     let (mut app, requests, results) = setup();
-    press(&mut app, KeyCode::Esc);
-    app.main_menu_selected = app
-        .main_menu_rows()
-        .iter()
-        .position(|row| app.main_menu_row_label(*row) == "Investigate ▸")
-        .unwrap();
-    press(&mut app, KeyCode::Right);
-    app.main_menu_selected = app
-        .main_menu_rows()
-        .iter()
-        .position(|row| app.main_menu_row_label(*row) == "Network endpoints")
-        .unwrap();
-    press(&mut app, KeyCode::Enter);
+    app.activate_header_action(ui::header::HeaderAction::Network);
     assert!(app.network_browser.visible);
     assert!(!app.is_main_menu_open());
     let snapshot = report(&app);
@@ -705,11 +693,11 @@ fn investigation_views_preserve_results_and_expose_direct_header_actions() {
     for label in [
         "[Processes]",
         "[Network]",
-        "[Find file users]",
-        "[View]",
-        "[Session]",
-        "[Appearance]",
-        "[Help]",
+        "[Find by file]",
+        "View ▾",
+        "Session ▾",
+        "Settings ▾",
+        " Help ",
     ] {
         assert!(text.lines().next().unwrap().contains(label), "{text}");
     }

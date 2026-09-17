@@ -13,7 +13,7 @@ use crate::{
 const HEADER_HEIGHT: u16 = 1;
 const MENU_KEYS: &[(&str, &str)] = &[
     ("↑/↓", "Select"),
-    ("←/→", "Expand"),
+    ("←/→", "Menu"),
     ("Enter", "Open"),
     ("Esc", "Close"),
 ];
@@ -43,9 +43,8 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
             } else {
                 Style::default().fg(theme.text)
             };
-            let indent = "  ".repeat(usize::from(row.depth));
-            let mut line = display_label(app, *row, theme);
-            line.spans.insert(0, Span::raw(format!("{cursor}{indent}")));
+            let mut line = display_label(app, *row, theme, content_width.saturating_sub(2));
+            line.spans.insert(0, Span::raw(cursor));
             line.spans.push(Span::raw(
                 " ".repeat(content_width.saturating_sub(line.width())),
             ));
@@ -53,7 +52,14 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
         })
         .collect::<Vec<_>>();
 
-    let layout = main_menu_modal(app).render(frame, area, Text::from(lines), 0, false, theme);
+    let layout = main_menu_modal(app).render(
+        frame,
+        anchored_area(area, app),
+        Text::from(lines),
+        menu_offset(area, app),
+        false,
+        theme,
+    );
     crate::ui::footer::register_shortcut_text(
         app,
         layout.footer,
@@ -69,25 +75,33 @@ pub(crate) fn draw_main_menu(frame: &mut ratatui::Frame<'_>, area: Rect, app: &A
 }
 
 pub(crate) fn main_menu_index_at(area: Rect, app: &App, x: u16, y: u16) -> Option<usize> {
-    let content = main_menu_modal(app).layout(area).content;
+    let content = main_menu_modal(app)
+        .layout(anchored_area(area, app))
+        .content;
     if x < content.x || x >= content.right() || y < content.y || y >= content.bottom() {
         return None;
     }
-    let index = usize::from(y - content.y);
+    let index = menu_offset(area, app) + usize::from(y - content.y);
     (index < app.main_menu_rows().len()).then_some(index)
 }
 
 pub(crate) fn main_menu_area(area: Rect, app: &App) -> Rect {
-    main_menu_modal(app).layout(area).area
+    main_menu_modal(app).layout(anchored_area(area, app)).area
 }
 
 #[cfg(test)]
 pub(crate) fn main_menu_item_area(area: Rect, app: &App, index: usize) -> Option<Rect> {
-    let content = main_menu_modal(app).layout(area).content;
-    (index < app.main_menu_rows().len() && index < usize::from(content.height)).then(|| {
+    let content = main_menu_modal(app)
+        .layout(anchored_area(area, app))
+        .content;
+    let offset = menu_offset(area, app);
+    (index >= offset
+        && index < app.main_menu_rows().len()
+        && index - offset < usize::from(content.height))
+    .then(|| {
         Rect::new(
             content.x,
-            content.y.saturating_add(index as u16),
+            content.y.saturating_add((index - offset) as u16),
             content.width,
             1,
         )
@@ -104,68 +118,77 @@ fn main_menu_modal(app: &App) -> ScrollableModal {
     .with_top_left_placement(HEADER_HEIGHT)
 }
 
-fn main_menu_content_width(app: &App) -> u16 {
-    let activity = app.activity();
-    activity
-        .main_menu_items()
+fn anchored_area(area: Rect, app: &App) -> Rect {
+    let width = main_menu_modal(app).layout(area).area.width;
+    let actions = super::header::header_actions(crate::ui::screen_layout(area)[0], app);
+    let x = actions
         .iter()
-        .flat_map(|item| {
-            let root = MainMenuRow {
-                item: *item,
-                depth: 0,
-            };
-            let children = match item {
-                MainMenuItem::Section(section) => section.actions(activity),
-                MainMenuItem::Action(_) => &[],
-            };
-            std::iter::once(root).chain(children.iter().copied().map(|action| MainMenuRow {
-                item: MainMenuItem::Action(action),
-                depth: 1,
-            }))
+        .find(|(action, _)| action.section() == Some(app.main_menu_section))
+        .or_else(|| {
+            actions
+                .iter()
+                .find(|(action, _)| *action == super::header::HeaderAction::More)
         })
-        .map(|row| 2 + usize::from(row.depth) * 2 + display_label(app, row, app.theme()).width())
+        .map_or(area.x, |(_, rect)| rect.x)
+        .min(area.right().saturating_sub(width));
+    Rect::new(x, area.y, area.right().saturating_sub(x), area.height)
+}
+
+fn menu_offset(area: Rect, app: &App) -> usize {
+    let height = main_menu_modal(app)
+        .layout(anchored_area(area, app))
+        .content
+        .height
+        .max(1) as usize;
+    app.main_menu_selected.saturating_sub(height - 1)
+}
+
+fn main_menu_content_width(app: &App) -> u16 {
+    app.main_menu_rows()
+        .iter()
+        .map(|row| 2 + app.main_menu_row_label(*row).len() + 2 + shortcut(*row).len())
         .max()
-        .unwrap_or_default()
-        .max(52)
+        .unwrap_or(0)
+        .max(43)
         .min(usize::from(u16::MAX)) as u16
 }
 
-fn display_label(app: &App, row: MainMenuRow, theme: Theme) -> Line<'static> {
-    let mut label = app.main_menu_row_label(row);
+fn shortcut(row: MainMenuRow) -> &'static str {
     let MainMenuItem::Action(action) = row.item else {
-        return Line::from(label);
+        let MainMenuItem::Header(action) = row.item else {
+            unreachable!()
+        };
+        return action.shortcut();
     };
-    let key = match action {
-        MainMenuAction::ProcessInfo => "Enter (Processes)",
-        MainMenuAction::ProcessFiles => "f (Processes)",
+    match action {
         MainMenuAction::OpenProfiles => "Ctrl+T",
         MainMenuAction::SaveProfile => "Ctrl+S",
         MainMenuAction::SaveProfileAs => "Ctrl+Shift+S",
         MainMenuAction::OpenColumns => "c (Processes)",
         MainMenuAction::ToggleTrackedOnly => "Shift+T",
         MainMenuAction::ToggleTreeView => "v (Processes)",
+        MainMenuAction::ToggleGraphs => "g (Processes)",
+        MainMenuAction::ToggleSamples => "v (Graphs)",
+        MainMenuAction::ToggleDelta => "d (Graphs)",
+        MainMenuAction::CycleGraphLayout => "l (Graphs)",
         MainMenuAction::StartRecording | MainMenuAction::StopRecording => "Ctrl+R",
         MainMenuAction::ReturnToLive => "Ctrl+B",
         MainMenuAction::OpenLog => "Ctrl+L",
-        MainMenuAction::Help => "F1",
         MainMenuAction::QuitImmediately | MainMenuAction::QuitWithConfirmation => "q",
         _ => "",
-    };
-    if matches!(
-        action,
-        MainMenuAction::ProcessInfo | MainMenuAction::ProcessFiles
-    ) {
-        if let Some(process) = app.selected_visible_process() {
-            let name: String = process.name.chars().take(24).collect();
-            label.push_str(&format!(" · PID {} {name}", process.pid));
-        } else {
-            label.push_str(" · no process selected");
-        }
     }
+}
+
+fn display_label(app: &App, row: MainMenuRow, theme: Theme, width: usize) -> Line<'static> {
+    let label = app.main_menu_row_label(row);
+    let key = shortcut(row);
+    let padding = width
+        .saturating_sub(Span::raw(&label).width() + key.len())
+        .max(2);
     let mut spans = vec![Span::raw(label)];
     if !key.is_empty() {
+        spans.push(Span::raw(" ".repeat(padding)));
         let (key, context) = key.split_once(' ').unwrap_or((key, ""));
-        spans.push(Span::raw("  "));
         spans.push(Span::styled(key, Style::default().fg(theme.key_hint)));
         if !context.is_empty() {
             spans.push(Span::raw(format!(" {context}")));

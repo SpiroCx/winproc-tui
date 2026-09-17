@@ -58,7 +58,6 @@ pub(crate) use graph_reorder::{
     graph_reorder_scrollbar_area,
 };
 use header::draw_header;
-pub(crate) use header::header_menu_area_for_screen;
 use help::draw_help;
 #[cfg(test)]
 pub(crate) use help::help_area;

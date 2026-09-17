@@ -139,16 +139,19 @@ fn help_dialog_buffer_shows_two_column_layout() {
         rendered.contains("Start recording / confirm stop"),
         "{rendered}"
     );
-    assert!(rendered.contains("Open main menu"), "{rendered}");
     assert!(
-        rendered.contains("Navigate main menu hierarchy"),
+        rendered.contains("Open Session menu (Quit is last)"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("Select item, switch menu, activate"),
         "{rendered}"
     );
     assert!(
         rendered.contains("Toggle selected main menu checkbox"),
         "{rendered}"
     );
-    assert!(rendered.contains("Click [MENU]"), "{rendered}");
+    assert!(rendered.contains("Click heading"), "{rendered}");
     assert!(!rendered.contains("Show MEM / GPU"), "{rendered}");
     assert!(rendered.contains("Pause / Resume"), "{rendered}");
     assert!(
@@ -214,7 +217,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
     );
     assert!(rendered.contains("F12"), "{rendered}");
     assert!(
-        rendered.contains("Cycle theme; Appearance selects theme and contrast directly"),
+        rendered.contains("Cycle theme; Settings selects theme and contrast directly"),
         "{rendered}"
     );
     assert!(rendered.contains("Esc/Enter/F1/? Close"), "{rendered}");

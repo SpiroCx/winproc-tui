@@ -18,7 +18,8 @@ use crate::{
     },
 };
 
-const BROWSER: ScrollableModal = ScrollableModal::new("FIND FILE USERS", u16::MAX, u16::MAX, 2);
+const BROWSER: ScrollableModal =
+    ScrollableModal::new("PROCESSES USING FILE", u16::MAX, u16::MAX, 2);
 
 pub(crate) fn browser_layout(screen: Rect) -> ScrollableModalLayout {
     BROWSER.layout(super::screen_layout(screen)[1])
@@ -239,7 +240,7 @@ pub(crate) fn draw_browser(frame: &mut ratatui::Frame<'_>, screen: Rect, app: &A
     let normal = Style::default().fg(theme.text).bg(theme.panel_alt);
     frame.render_widget(Clear, layout.area);
     frame.render_widget(
-        modal_block_focused(modal_title("FIND FILE USERS", theme), theme),
+        modal_block_focused(modal_title("PROCESSES USING FILE", theme), theme),
         layout.area,
     );
     if view.detail {

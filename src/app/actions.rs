@@ -19,7 +19,7 @@ use crate::{
         cpu_per_core_button_area,
         details_panel::graph_y_axis_label_width,
         gpu_panel_area_for_screen, graph_reorder_index_at, graph_reorder_scrollbar_area,
-        header_menu_area_for_screen, help_scrollbar_area, investigation_profile_index_at,
+        help_scrollbar_area, investigation_profile_index_at,
         investigation_profile_startup_at_for_screen,
         layout::{
             DetailsSamplesSummaryVisibility, GraphWorkspaceLayout, ProcessTableLayout,
@@ -646,6 +646,53 @@ impl App {
             return Ok(());
         }
 
+        let menu_input_available = self.is_main_menu_open()
+            || (!self.has_workspace_overlay()
+                && !self.is_filter_editing()
+                && !self.is_process_jump_editing()
+                && !(self.network_browser.visible
+                    && (self.network_browser.editing || self.network_browser.detail))
+                && !(self.file_users.visible
+                    && (self.file_users.detail
+                        || self.file_users.focus == super::file_users::FileUsersFocus::Query)));
+        if menu_input_available
+            && key.modifiers == KeyModifiers::ALT
+            && let KeyCode::Char(ch) = key.code
+        {
+            let section = match ch.to_ascii_lowercase() {
+                's' => Some(super::state::MainMenuSection::Session),
+                'p' => Some(super::state::MainMenuSection::Profile),
+                'v' => Some(super::state::MainMenuSection::View),
+                't' => Some(super::state::MainMenuSection::Settings),
+                _ => None,
+            };
+            if let Some(section) = section {
+                self.open_main_menu_section(section);
+                return Ok(());
+            }
+        }
+
+        if self.is_main_menu_open() {
+            match key.code {
+                KeyCode::Up => self.move_main_menu_selection_up(),
+                KeyCode::Down => self.move_main_menu_selection_down(),
+                KeyCode::Home => self.move_main_menu_selection_home(),
+                KeyCode::End => self.move_main_menu_selection_end(),
+                KeyCode::Left => self.switch_main_menu(false),
+                KeyCode::Right => self.switch_main_menu(true),
+                KeyCode::Char(' ') => self.toggle_main_menu_checkbox_selection(),
+                KeyCode::Enter => self.activate_main_menu_selection()?,
+                KeyCode::Esc => self.close_main_menu(),
+                KeyCode::Char(ch) if ch.eq_ignore_ascii_case(&'q') && key.modifiers.is_empty() => {
+                    self.open_main_menu_section(super::state::MainMenuSection::Session);
+                    self.move_main_menu_selection_end();
+                    self.activate_main_menu_selection()?;
+                }
+                _ => {}
+            }
+            return Ok(());
+        }
+
         if !self.has_workspace_overlay() && !self.is_filter_editing() && key.modifiers.is_empty() {
             let action = match key.code {
                 KeyCode::F(2) => Some(crate::ui::header::HeaderAction::Processes),
@@ -801,26 +848,6 @@ impl App {
                 KeyCode::Home => self.move_column_picker_home(),
                 KeyCode::End => self.move_column_picker_end(),
                 KeyCode::Char(' ') => self.toggle_picker_column(),
-                _ => {}
-            }
-            return Ok(());
-        }
-
-        if self.is_main_menu_open() {
-            match key.code {
-                KeyCode::Up => self.move_main_menu_selection_up(),
-                KeyCode::Down => self.move_main_menu_selection_down(),
-                KeyCode::Home => self.move_main_menu_selection_home(),
-                KeyCode::End => self.move_main_menu_selection_end(),
-                KeyCode::Left => self.collapse_main_menu_selection(),
-                KeyCode::Right => self.expand_main_menu_selection(),
-                KeyCode::Char(' ') => self.toggle_main_menu_checkbox_selection(),
-                KeyCode::Enter => self.activate_main_menu_selection()?,
-                KeyCode::Esc => self.close_main_menu(),
-                KeyCode::Char(ch) if ch.eq_ignore_ascii_case(&'q') => {
-                    self.move_main_menu_selection_end();
-                    self.activate_main_menu_selection()?;
-                }
                 _ => {}
             }
             return Ok(());
@@ -1530,12 +1557,14 @@ impl App {
             return;
         }
 
-        self.header_action_hovered = if self.has_workspace_overlay() {
+        self.header_action_hovered = if self.has_workspace_overlay() && !self.is_main_menu_open() {
             None
         } else {
             crate::ui::header::header_action_at(screen_area, self, mouse.column, mouse.row).or_else(
                 || {
-                    (!self.network_browser.visible && !self.file_users.visible)
+                    (!self.has_workspace_overlay()
+                        && !self.network_browser.visible
+                        && !self.file_users.visible)
                         .then(|| {
                             crate::ui::system_panel::network_endpoint_action_area(screen_area, self)
                         })
@@ -1601,7 +1630,6 @@ impl App {
             self.process_view_mode_hovered = false;
             self.process_tracked_only_hovered = false;
             self.process_disclosure_hovered = None;
-            self.header_menu_hovered = false;
         } else {
             self.resource_panel_hovered =
                 crate::ui::resource_switch_at(screen_area, self, mouse.column, mouse.row);
@@ -1626,8 +1654,6 @@ impl App {
                         .and_then(|index| self.visible_process_identity_at(index))
                 })
                 .flatten();
-            self.header_menu_hovered = header_menu_area_for_screen(screen_area, self)
-                .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
             if mouse.kind == MouseEventKind::Moved {
                 return;
             }
@@ -1684,18 +1710,6 @@ impl App {
             {
                 self.status = format!("Menu action failed: {error}");
             }
-            return;
-        }
-
-        if !self.has_workspace_overlay() {
-            self.header_menu_hovered = header_menu_area_for_screen(screen_area, self)
-                .is_some_and(|area| contains_point(area, mouse.column, mouse.row));
-        }
-        if !self.has_workspace_overlay()
-            && self.header_menu_hovered
-            && mouse.kind == MouseEventKind::Down(MouseButton::Left)
-        {
-            self.open_main_menu();
             return;
         }
 

@@ -36,7 +36,7 @@ Theme, mouse enablement, Tracked-only, Processes Flat/Tree mode, visible process
 
 ## Startup
 
-Startup mode can `Resume last`, `Choose Profile`, or `Start empty`. The chooser contains `Last investigation`, `Empty investigation`, and every saved Investigation Profile. The two built-in choices are virtual and are never persisted or bound as named profiles. The startup setting is available from the main menu's Config section.
+Startup mode can `Resume last`, `Choose Profile`, or `Start empty`. The chooser contains `Last investigation`, `Empty investigation`, and every saved Investigation Profile. The two built-in choices are virtual and are never persisted or bound as named profiles. The startup setting is available from the Settings menu.
 
 Startup applies the selected Tracking List before the first sample so tracked-history retention applies from the first capture. Application-wide preferences are loaded independently. Graph registrations always begin empty and are added explicitly during the run.
 

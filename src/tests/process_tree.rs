@@ -4,8 +4,8 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{layout::Rect, style::Modifier};
 
 use super::support::{
-    find_symbol_position, find_text_position, left_click, make_test_app, make_test_app_with_worker,
-    mouse_move, render_app_to_buffer, render_app_to_text, unique_recording_path,
+    find_text_position, left_click, make_test_app, make_test_app_with_worker, mouse_move,
+    render_app_to_buffer, render_app_to_text, unique_recording_path,
 };
 use crate::{
     app::state::{ExitedTrackedRow, PausedDisplay},
@@ -184,7 +184,14 @@ fn filtered_disclosures_are_muted_and_absorb_mouse_input_without_tracking() {
     app.rebuild_visible_process_cache();
     let screen = Rect::new(0, 0, 120, 45);
     let buffer = render_app_to_buffer(&app, screen.width, screen.height);
-    let (glyph_x, glyph_y) = find_symbol_position(&buffer, "▾").unwrap();
+    let (glyph_x, glyph_y) = super::support::find_text_position_in_area(
+        &buffer,
+        crate::ui::main_panel_areas_for_app(screen, &app)
+            .processes
+            .area,
+        "▾",
+    )
+    .unwrap();
     assert_eq!(buffer[(glyph_x, glyph_y)].fg, app.theme().muted);
 
     app.on_mouse(mouse_move(glyph_x, glyph_y), screen);
@@ -467,7 +474,14 @@ fn disclosure_mouse_region_is_distinct_from_tracking_and_uses_hover_style() {
     let mut app = make_tree_app();
     let screen = Rect::new(0, 0, 120, 45);
     let buffer = render_app_to_buffer(&app, screen.width, screen.height);
-    let (glyph_x, glyph_y) = find_symbol_position(&buffer, "▾").unwrap();
+    let (glyph_x, glyph_y) = super::support::find_text_position_in_area(
+        &buffer,
+        crate::ui::main_panel_areas_for_app(screen, &app)
+            .processes
+            .area,
+        "▾",
+    )
+    .unwrap();
 
     app.on_mouse(mouse_move(glyph_x, glyph_y), screen);
     let hovered = render_app_to_buffer(&app, screen.width, screen.height);
@@ -527,7 +541,14 @@ fn narrow_process_column_keeps_disclosure_draw_and_hit_test_aligned() {
     app.rebuild_visible_process_cache();
     let screen = Rect::new(0, 0, 100, 45);
     let buffer = render_app_to_buffer(&app, screen.width, screen.height);
-    let (glyph_x, glyph_y) = find_symbol_position(&buffer, "▾").unwrap();
+    let (glyph_x, glyph_y) = super::support::find_text_position_in_area(
+        &buffer,
+        crate::ui::main_panel_areas_for_app(screen, &app)
+            .processes
+            .area,
+        "▾",
+    )
+    .unwrap();
 
     app.on_mouse(left_click(glyph_x, glyph_y), screen);
 

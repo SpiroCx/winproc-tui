@@ -35,7 +35,7 @@ impl App {
             return "Network endpoints";
         }
         if self.file_users.visible {
-            return "Find file users";
+            return "Find processes by file";
         }
         match self.focused_panel {
             FocusedPanel::System => "MEM/GPU",

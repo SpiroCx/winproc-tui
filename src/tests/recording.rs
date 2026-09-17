@@ -861,7 +861,7 @@ fn live_header_omits_freshness_when_current() {
     let rendered = render_app_to_text(&app, 120, 45);
 
     assert!(rendered.contains("LIVE"), "{rendered}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
+    assert!(rendered.contains("Session ▾"), "{rendered}");
     assert!(rendered.contains("PF: none"), "{rendered}");
     assert!(!rendered.contains("fresh"), "{rendered}");
     assert!(!rendered.contains("STALE"), "{rendered}");
@@ -875,7 +875,7 @@ fn live_header_hides_product_and_version_when_the_row_is_too_narrow() {
     let rendered = render_app_to_text(&app, 24, 20);
 
     assert!(rendered.contains("LIVE"), "{rendered}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
+    assert!(rendered.contains("Session ▾"), "{rendered}");
     assert!(!rendered.contains(&product_and_version), "{rendered}");
 }
 
@@ -906,14 +906,16 @@ fn recording_header_shows_rec_spinner_and_path() {
 
     let rendered = render_app_to_text(&app, 120, 45);
     let header = rendered.lines().next().expect("header row");
-    let file_name = path.file_name().unwrap().to_string_lossy();
     assert!(rendered.contains("REC"), "{rendered}");
     assert!(!rendered.contains("fresh"), "{rendered}");
     assert!(!rendered.contains("STALE"), "{rendered}");
-    assert!(header.contains(file_name.as_ref()), "{header}");
+    assert!(
+        header.contains("winproc-") && header.contains(".log"),
+        "{header}"
+    );
     assert!(!header.contains(&path.display().to_string()), "{header}");
     assert!(header.contains("PF: none"), "{header}");
-    assert!(rendered.contains("[MENU]"), "{rendered}");
+    assert!(rendered.contains("Session ▾"), "{rendered}");
     let buffer = render_app_to_buffer(&app, 120, 45);
     let (profile_x, profile_y) =
         find_text_position(&buffer, "PF: none").expect("profile badge should render");
@@ -928,10 +930,7 @@ fn recording_header_shows_rec_spinner_and_path() {
     assert_ne!(paused_header, advanced.lines().next().unwrap());
     assert!(paused.contains("REC"), "{paused}");
     assert!(paused.contains("DISPLAY PAUSED"), "{paused}");
-    assert!(
-        paused_header.contains(file_name.as_ref()),
-        "{paused_header}"
-    );
+    assert!(paused_header.contains(".log"), "{paused_header}");
 
     let narrow = render_app_to_text(&app, 80, 45);
     let footer = narrow.lines().last().unwrap();

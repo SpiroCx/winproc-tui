@@ -1,140 +1,202 @@
+use crate::{
+    App,
+    app::{AppActivity, SampleFreshness, state::MainMenuSection},
+    ui::Theme,
+};
 use ratatui::{
     layout::{Alignment, Rect},
-    prelude::{Color, Modifier, Style},
+    prelude::{Modifier, Style},
     text::{Line, Span},
     widgets::Paragraph,
 };
 
-use crate::{
-    App,
-    app::{AppActivity, SampleFreshness},
-    ui::Theme,
-};
-
 const SPINNER: [char; 4] = ['|', '/', '-', '\\'];
-const HEADER_ITEM_GAP: usize = 2;
-const HEADER_MENU_LABEL: &str = "[MENU]";
-const PROFILE_LABEL_MAX_WIDTH: u16 = 28;
 
 pub(crate) fn draw_header(frame: &mut ratatui::Frame<'_>, area: Rect, app: &App, theme: Theme) {
-    let mut spans = header_status_spans(area, app, theme);
-    let activity = app.activity();
-    let active_log_name = app.active_log_path().map(|path| {
-        path.file_name()
-            .unwrap_or(path.as_os_str())
-            .to_string_lossy()
-            .into_owned()
-    });
-    let product_and_version = format!("winproc-tui {}", env!("CARGO_PKG_VERSION"));
-    let product_width = product_and_version.chars().count();
-    let left_content_width = spans_width(&spans).saturating_add(
-        active_log_name
-            .as_ref()
-            .map(|name| HEADER_ITEM_GAP.saturating_add(name.chars().count()))
-            .unwrap_or(0),
+    frame.render_widget(
+        Paragraph::new("").style(Style::default().bg(theme.panel)),
+        area,
     );
-    let show_product_and_version = left_content_width
-        .saturating_add(HEADER_ITEM_GAP)
-        .saturating_add(product_width)
-        <= usize::from(area.width);
-    let left_area = if show_product_and_version {
-        Rect::new(
-            area.x,
-            area.y,
-            area.width
-                .saturating_sub(product_width as u16)
-                .saturating_sub(HEADER_ITEM_GAP as u16),
-            area.height,
-        )
-    } else {
-        area
-    };
-
     let actions = header_actions(area, app);
-    let left_area = actions.first().map_or(left_area, |(_, rect)| {
-        Rect::new(
-            left_area.x,
-            left_area.y,
-            rect.x.saturating_sub(left_area.x).saturating_sub(2),
-            left_area.height,
-        )
-    });
-    if let Some(name) = active_log_name {
-        append_log_name(
-            &mut spans,
-            left_area,
-            &name,
-            if activity == AppActivity::Recording {
-                theme.warning
-            } else {
-                theme.text
-            },
-        );
-    }
-
-    let header = Line::from(spans);
-
-    let header_widget = Paragraph::new(header)
-        .style(Style::default().bg(theme.panel))
-        .alignment(Alignment::Left);
-    frame.render_widget(header_widget, area);
-
-    for (action, rect) in actions {
+    for (action, rect) in &actions {
+        let active = action
+            .section()
+            .is_some_and(|section| app.is_main_menu_open() && app.main_menu_section == section)
+            || (*action == HeaderAction::More
+                && app.is_main_menu_open()
+                && !actions
+                    .iter()
+                    .any(|(action, _)| action.section() == Some(app.main_menu_section)));
         let selected = match action {
             HeaderAction::Processes => !app.network_browser.visible && !app.file_users.visible,
             HeaderAction::Network => app.network_browser.visible,
             HeaderAction::FileUsers => app.file_users.visible,
             _ => false,
         };
-        let hovered = app.header_action_hovered == Some(action);
-        frame.render_widget(
-            Paragraph::new(action.label()).style(
-                Style::default()
-                    .fg(if selected {
-                        theme.focus_border
+        let hovered = app.header_action_hovered == Some(*action);
+        let style = Style::default()
+            .fg(if selected {
+                theme.focus_border
+            } else {
+                theme.text
+            })
+            .bg(if hovered {
+                theme.focus_surface
+            } else if active {
+                theme.table_selection_surface
+            } else {
+                theme.panel
+            })
+            .add_modifier(if active || hovered || selected {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            });
+        let spans = action
+            .label()
+            .chars()
+            .enumerate()
+            .map(|(index, ch)| {
+                Span::styled(
+                    ch.to_string(),
+                    if action.access_index() == Some(index) {
+                        style.fg(theme.key_hint).add_modifier(Modifier::UNDERLINED)
                     } else {
-                        theme.text
-                    })
-                    .bg(if hovered {
-                        theme.focus_surface
-                    } else {
-                        theme.panel
-                    })
-                    .add_modifier(if hovered || selected {
-                        Modifier::BOLD
-                    } else {
-                        Modifier::empty()
-                    }),
-            ),
-            rect,
+                        style
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        frame.render_widget(Paragraph::new(Line::from(spans)).style(style), *rect);
+    }
+    let status_x = actions
+        .last()
+        .map_or(area.x, |(_, rect)| rect.right().saturating_add(2))
+        .min(area.right());
+    let status_area = Rect::new(
+        status_x,
+        area.y,
+        area.right().saturating_sub(status_x),
+        area.height,
+    );
+    let mut spans = header_status_spans(app, theme);
+    let budget = usize::from(status_area.width);
+    let profile = if app.activity() == AppActivity::LogView {
+        "PF: --".to_string()
+    } else {
+        format!(
+            "PF: {}{}",
+            app.active_investigation_profile
+                .as_deref()
+                .unwrap_or("none"),
+            if app.active_investigation_profile.is_some()
+                && app.active_investigation_profile_dirty()
+            {
+                "*"
+            } else {
+                ""
+            }
+        )
+    };
+    let profile_budget = budget.min(spans.iter().map(Span::width).sum::<usize>() + 30);
+    let count = spans.len();
+    append_fitting_label(&mut spans, &profile, profile_budget, theme.muted);
+    if spans.len() > count {
+        spans.last_mut().unwrap().style = Style::default()
+            .fg(ratatui::style::Color::Black)
+            .bg(theme.muted);
+    }
+    if let Some(path) = app.active_log_path() {
+        append_fitting_label(
+            &mut spans,
+            &path
+                .file_name()
+                .unwrap_or(path.as_os_str())
+                .to_string_lossy(),
+            budget,
+            theme.muted,
         );
     }
-    if show_product_and_version {
-        let product_area = Rect::new(
-            area.x
-                .saturating_add(area.width.saturating_sub(product_width as u16)),
-            area.y,
-            product_width as u16,
-            area.height,
-        );
-        let product_widget = Paragraph::new(product_and_version)
-            .style(Style::default().fg(theme.muted).bg(theme.panel))
-            .alignment(Alignment::Right);
-        frame.render_widget(product_widget, product_area);
+    // Clip status by terminal cells, retaining activity before optional names.
+    let mut remaining = budget;
+    let spans = spans
+        .into_iter()
+        .map(|span| {
+            let text = truncate_cells(&span.content, remaining);
+            remaining = remaining.saturating_sub(Span::raw(&text).width());
+            Span::styled(text, span.style)
+        })
+        .collect::<Vec<_>>();
+    frame.render_widget(
+        Paragraph::new(Line::from(spans))
+            .alignment(Alignment::Right)
+            .style(Style::default().bg(theme.panel)),
+        status_area,
+    );
+}
+
+fn append_fitting_label(
+    spans: &mut Vec<Span<'static>>,
+    text: &str,
+    budget: usize,
+    color: ratatui::style::Color,
+) {
+    let remaining = budget.saturating_sub(spans.iter().map(Span::width).sum::<usize>());
+    if remaining >= 6 {
+        spans.push(Span::raw("  "));
+        spans.push(Span::styled(
+            truncate_name(text, remaining - 2),
+            Style::default().fg(color),
+        ));
     }
 }
 
-fn header_status_spans(area: Rect, app: &App, theme: Theme) -> Vec<Span<'static>> {
+fn truncate_name(text: &str, width: usize) -> String {
+    if Span::raw(text).width() <= width {
+        return text.to_string();
+    }
+    if width < 5 {
+        return truncate_cells(text, width);
+    }
+    let tail_budget = ((width - 1) / 2).max(4);
+    let mut tail = String::new();
+    let mut used = 0;
+    for ch in text.chars().rev() {
+        let cells = Span::raw(ch.to_string()).width();
+        if used + cells > tail_budget {
+            break;
+        }
+        tail.insert(0, ch);
+        used += cells;
+    }
+    format!("{}{}", truncate_cells(text, width - used), tail)
+}
+
+fn truncate_cells(text: &str, width: usize) -> String {
+    if Span::raw(text).width() <= width {
+        return text.to_string();
+    }
+    if width == 0 {
+        return String::new();
+    }
+    let mut out = String::new();
+    let mut used = 0;
+    for ch in text.chars() {
+        let cells = Span::raw(ch.to_string()).width();
+        if used + cells > width - 1 {
+            break;
+        }
+        out.push(ch);
+        used += cells;
+    }
+    out.push('…');
+    out
+}
+
+fn header_status_spans(app: &App, theme: Theme) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
 
     let activity = app.activity();
-    if header_menu_area(area, app).is_some() {
-        spans.push(Span::styled(
-            HEADER_MENU_LABEL,
-            header_menu_style(app, theme),
-        ));
-        spans.push(Span::raw("  "));
-    }
     spans.push(mode_span(
         activity_label(activity),
         match activity {
@@ -177,24 +239,7 @@ fn header_status_spans(area: Rect, app: &App, theme: Theme) -> Vec<Span<'static>
         spans.push(Span::raw("  "));
         spans.push(mode_span("DISPLAY PAUSED", theme.warning, theme));
     }
-    append_profile_label(&mut spans, app, activity, theme);
     spans
-}
-
-pub(crate) fn header_menu_area(area: Rect, app: &App) -> Option<Rect> {
-    let badge_width = activity_label(app.activity())
-        .chars()
-        .count()
-        .saturating_add(2) as u16;
-    let width = HEADER_MENU_LABEL.chars().count() as u16;
-    let required_width = width
-        .saturating_add(HEADER_ITEM_GAP as u16)
-        .saturating_add(badge_width);
-    (area.height > 0 && required_width <= area.width).then_some(Rect::new(area.x, area.y, width, 1))
-}
-
-pub(crate) fn header_menu_area_for_screen(area: Rect, app: &App) -> Option<Rect> {
-    header_menu_area(crate::ui::layout::screen_layout(area)[0], app)
 }
 
 fn activity_label(activity: AppActivity) -> &'static str {
@@ -202,25 +247,6 @@ fn activity_label(activity: AppActivity) -> &'static str {
         AppActivity::Live => "LIVE",
         AppActivity::Recording => "REC",
         AppActivity::LogView => "LOG",
-    }
-}
-
-fn header_menu_style(app: &App, theme: Theme) -> Style {
-    if app.is_main_menu_open() {
-        Style::default()
-            .fg(theme.text)
-            .bg(theme.table_selection_surface)
-            .add_modifier(Modifier::BOLD)
-    } else if app.header_menu_hovered {
-        Style::default()
-            .fg(theme.text)
-            .bg(theme.focus_surface)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default()
-            .fg(theme.key_hint)
-            .bg(theme.panel)
-            .add_modifier(Modifier::BOLD)
     }
 }
 
@@ -247,57 +273,6 @@ fn stale_span(age_seconds: u64, theme: Theme) -> Span<'static> {
     )
 }
 
-fn append_profile_label(
-    spans: &mut Vec<Span<'static>>,
-    app: &App,
-    activity: AppActivity,
-    theme: Theme,
-) {
-    let label = match activity {
-        AppActivity::LogView => "PF: --".to_string(),
-        AppActivity::Live | AppActivity::Recording => {
-            let Some(name) = app.active_investigation_profile.as_deref() else {
-                append_profile_badge(spans, "PF: none", theme);
-                return;
-            };
-            let modified = app.active_investigation_profile_dirty();
-            format!("PF: {name}{}", if modified { "*" } else { "" })
-        }
-    };
-    append_profile_badge(spans, &label, theme);
-}
-
-fn append_profile_badge(spans: &mut Vec<Span<'static>>, label: &str, theme: Theme) {
-    spans.push(Span::raw("  "));
-    spans.push(Span::styled(
-        truncate_middle(label, PROFILE_LABEL_MAX_WIDTH),
-        Style::default().fg(Color::Black).bg(theme.muted),
-    ));
-}
-
-fn append_log_name(
-    spans: &mut Vec<Span<'static>>,
-    area: Rect,
-    name: &str,
-    color: ratatui::prelude::Color,
-) {
-    let used_width = spans_width(spans);
-    let name_width =
-        usize::from(area.width).saturating_sub(used_width.saturating_add(HEADER_ITEM_GAP));
-    if name_width == 0 {
-        return;
-    }
-    spans.push(Span::raw("  "));
-    spans.push(Span::styled(
-        truncate_middle(name, name_width.min(usize::from(u16::MAX)) as u16),
-        Style::default().fg(color),
-    ));
-}
-
-fn spans_width(spans: &[Span<'_>]) -> usize {
-    spans.iter().map(|span| span.content.chars().count()).sum()
-}
-
 fn mode_span(label: &'static str, color: ratatui::prelude::Color, theme: Theme) -> Span<'static> {
     Span::styled(
         format!(" {label} "),
@@ -308,98 +283,133 @@ fn mode_span(label: &'static str, color: ratatui::prelude::Color, theme: Theme) 
     )
 }
 
-fn truncate_middle(value: &str, max_width: u16) -> String {
-    let max_width = max_width as usize;
-    let char_count = value.chars().count();
-    if char_count <= max_width {
-        return value.to_string();
-    }
-    if max_width <= 3 {
-        return ".".repeat(max_width);
-    }
-
-    let tail_len = (max_width / 2).max(1);
-    let head_len = max_width.saturating_sub(tail_len + 3);
-    let head = value.chars().take(head_len).collect::<String>();
-    let tail = value
-        .chars()
-        .rev()
-        .take(tail_len)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .collect::<String>();
-    format!("{head}...{tail}")
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HeaderAction {
+    Session,
+    Profile,
+    View,
+    Settings,
+    Help,
     Processes,
     Network,
     FileUsers,
-    Profile,
-    View,
-    Session,
-    Settings,
-    Help,
+    More,
 }
 impl HeaderAction {
     pub(crate) fn label(self) -> &'static str {
         match self {
+            Self::Session => " Session ▾ ",
+            Self::Profile => " Profile ▾ ",
+            Self::View => " View ▾ ",
+            Self::Settings => " Settings ▾ ",
+            Self::Help => " Help ",
             Self::Processes => "[Processes]",
             Self::Network => "[Network]",
-            Self::FileUsers => "[Find file users]",
-            Self::Profile => "[Profile]",
-            Self::View => "[View]",
-            Self::Session => "[Session]",
-            Self::Settings => "[Appearance]",
-            Self::Help => "[Help]",
+            Self::FileUsers => "[Find by file]",
+            Self::More => " More ▾ ",
+        }
+    }
+    pub(crate) fn menu_label(self) -> &'static str {
+        match self {
+            Self::FileUsers => "Find processes by file",
+            Self::Session => "Session",
+            Self::Profile => "Profile",
+            Self::View => "View",
+            Self::Settings => "Settings",
+            Self::Help => "Help",
+            Self::Processes => "Processes",
+            Self::Network => "Network",
+            Self::More => "More",
+        }
+    }
+    pub(crate) fn section(self) -> Option<MainMenuSection> {
+        match self {
+            Self::Session => Some(MainMenuSection::Session),
+            Self::Profile => Some(MainMenuSection::Profile),
+            Self::View => Some(MainMenuSection::View),
+            Self::Settings => Some(MainMenuSection::Settings),
+            Self::More => Some(MainMenuSection::More),
+            _ => None,
+        }
+    }
+    fn access_index(self) -> Option<usize> {
+        match self {
+            Self::Session | Self::Profile | Self::View => Some(1),
+            Self::Settings => Some(3),
+            _ => None,
+        }
+    }
+    pub(crate) fn shortcut(self) -> &'static str {
+        match self {
+            Self::Session => "Alt+S",
+            Self::Profile => "Alt+P",
+            Self::View => "Alt+V",
+            Self::Settings => "Alt+T",
+            Self::Help => "F1",
+            Self::Processes => "F2",
+            Self::Network => "F3",
+            Self::FileUsers => "F4",
+            Self::More => "",
         }
     }
 }
 
+fn available_actions(app: &App) -> Vec<HeaderAction> {
+    use HeaderAction::*;
+    [
+        Session, Profile, View, Settings, Help, Processes, Network, FileUsers,
+    ]
+    .into_iter()
+    .filter(|action| {
+        app.activity() != AppActivity::LogView || !matches!(action, Network | FileUsers)
+    })
+    .collect()
+}
+
 pub(crate) fn header_actions(area: Rect, app: &App) -> Vec<(HeaderAction, Rect)> {
-    let mut x = area
-        .x
-        .saturating_add(spans_width(&header_status_spans(area, app, app.theme())) as u16)
-        .saturating_add(2);
-    if let Some(path) = app.active_log_path() {
-        x = x.saturating_add(
-            path.file_name()
-                .unwrap_or(path.as_os_str())
-                .to_string_lossy()
-                .chars()
-                .count()
-                .min(60) as u16
-                + 2,
-        );
+    if area.is_empty() {
+        return Vec::new();
     }
-    let end = area
-        .right()
-        .saturating_sub(format!("winproc-tui {}", env!("CARGO_PKG_VERSION")).len() as u16 + 2);
+    // Width depends only on terminal geometry, never profile names or activity badges.
+    let reserved = (area.width / 3)
+        .clamp(40, 48)
+        .min(area.width.saturating_sub(12));
+    let end = area.right().saturating_sub(reserved);
+    let available = available_actions(app);
+    let total = available
+        .iter()
+        .map(|action| Span::raw(action.label()).width() as u16 + 1)
+        .sum::<u16>();
+    let overflow = total > end.saturating_sub(area.x);
+    let more_width = Span::raw(HeaderAction::More.label()).width() as u16;
+    let limit = if overflow {
+        end.saturating_sub(more_width + 1)
+    } else {
+        end
+    };
+    let mut x = area.x;
     let mut actions = Vec::new();
-    for action in [
-        HeaderAction::Processes,
-        HeaderAction::Network,
-        HeaderAction::FileUsers,
-        HeaderAction::Profile,
-        HeaderAction::View,
-        HeaderAction::Session,
-        HeaderAction::Settings,
-        HeaderAction::Help,
-    ] {
-        if app.activity() == AppActivity::LogView
-            && matches!(action, HeaderAction::Network | HeaderAction::FileUsers)
-        {
-            continue;
+    for action in available {
+        let width = Span::raw(action.label()).width() as u16;
+        if x.saturating_add(width) > limit && action != HeaderAction::Session {
+            break;
         }
-        let width = action.label().len() as u16;
-        if x.saturating_add(width) <= end {
-            actions.push((action, Rect::new(x, area.y, width, area.height.min(1))));
-            x = x.saturating_add(width + 1);
-        }
+        let width = width.min(area.right().saturating_sub(x));
+        actions.push((action, Rect::new(x, area.y, width, 1)));
+        x = x.saturating_add(width + 1);
+    }
+    if overflow && x + more_width + 8 <= area.right() {
+        actions.push((HeaderAction::More, Rect::new(x, area.y, more_width, 1)));
     }
     actions
+}
+
+pub(crate) fn overflow_actions(screen: Rect, app: &App) -> Vec<HeaderAction> {
+    let visible = header_actions(crate::ui::screen_layout(screen)[0], app);
+    available_actions(app)
+        .into_iter()
+        .filter(|action| !visible.iter().any(|(shown, _)| shown == action))
+        .collect()
 }
 
 pub(crate) fn header_action_at(screen: Rect, app: &App, x: u16, y: u16) -> Option<HeaderAction> {
