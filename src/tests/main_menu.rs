@@ -591,3 +591,124 @@ fn profile_badge_keeps_both_padding_cells_when_truncated() {
         }
     }
 }
+
+#[test]
+fn header_arrows_reach_help_in_every_activity_and_terminal_width() {
+    for activity in [
+        AppActivity::Live,
+        AppActivity::Recording,
+        AppActivity::LogView,
+    ] {
+        for width in [80, 120, 180] {
+            let mut app = make_test_app(1, 10);
+            let path = if activity == AppActivity::Recording {
+                Some(start_recording(&mut app, "header-help-navigation"))
+            } else {
+                None
+            };
+            if activity == AppActivity::LogView {
+                app.log_view_path = Some(PathBuf::from("example.log"));
+            }
+            let screen = Rect::new(0, 0, width, 60);
+            app.set_screen_area(screen);
+            render_app_to_buffer(&app, width, 60);
+            let focus = app.focused_panel;
+            press(&mut app, KeyCode::Esc);
+            let mut expected = vec![MainMenuSection::Profile, MainMenuSection::View];
+            if activity != AppActivity::LogView {
+                expected.push(MainMenuSection::Tools);
+            }
+            expected.extend([MainMenuSection::Settings, MainMenuSection::Help]);
+            for section in expected {
+                press(&mut app, KeyCode::Right);
+                assert_eq!(app.main_menu_section, section);
+                assert!(app.is_main_menu_open());
+                assert!(!app.show_help);
+            }
+            let buffer = render_app_to_buffer(&app, width, 60);
+            let heading = ui::header::header_actions(ui::screen_layout(screen)[0], &app)
+                .into_iter()
+                .find(|(action, _)| {
+                    *action
+                        == if width == 80 {
+                            HeaderAction::More
+                        } else {
+                            HeaderAction::Help
+                        }
+                })
+                .unwrap()
+                .1;
+            assert_eq!(
+                buffer[(heading.x + 1, heading.y)].bg,
+                app.theme().table_selection_surface
+            );
+            assert!(render_app_to_text(&app, width, 60).contains("Enter Help"));
+            assert!(main_menu_area(screen, &app).is_empty());
+            assert!(main_menu_item_area(screen, &app, 0).is_none());
+            press(&mut app, KeyCode::Right);
+            assert_eq!(
+                app.main_menu_section,
+                if width == 80 {
+                    MainMenuSection::More
+                } else {
+                    MainMenuSection::Session
+                }
+            );
+            press(&mut app, KeyCode::Left);
+            assert_eq!(app.main_menu_section, MainMenuSection::Help);
+            press(&mut app, KeyCode::Left);
+            assert_eq!(app.main_menu_section, MainMenuSection::Settings);
+            press(&mut app, KeyCode::Right);
+            press(&mut app, KeyCode::Enter);
+            assert!(app.show_help);
+            assert!(!app.is_main_menu_open());
+            assert_eq!(ui::help::section_titles()[app.help_section], "Processes");
+            press(&mut app, KeyCode::Esc);
+            assert_eq!(app.focused_panel, focus);
+            assert_eq!(app.activity(), activity);
+            if let Some(path) = path {
+                app.stop_recording().unwrap();
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn focused_help_cancels_or_opens_from_header_and_footer_without_click_through() {
+    let screen = Rect::new(0, 0, 120, 60);
+    let mut app = make_test_app(1, 10);
+    render_app_to_buffer(&app, screen.width, screen.height);
+    let focus = app.focused_panel;
+    press(&mut app, KeyCode::Esc);
+    press(&mut app, KeyCode::Left);
+    assert_eq!(app.main_menu_section, MainMenuSection::Help);
+    for key in [KeyCode::Up, KeyCode::Down, KeyCode::Home, KeyCode::End] {
+        press(&mut app, key);
+        assert!(!app.show_help);
+    }
+    press(&mut app, KeyCode::Esc);
+    assert!(!app.is_main_menu_open());
+    assert_eq!(app.focused_panel, focus);
+
+    for label in ["Enter Help", " Help "] {
+        press(&mut app, KeyCode::Esc);
+        press(&mut app, KeyCode::Left);
+        let buffer = render_app_to_buffer(&app, screen.width, screen.height);
+        let (x, y) = find_text_position(&buffer, label).unwrap();
+        app.on_mouse(left_click(x + 1, y), screen);
+        assert!(app.show_help);
+        assert!(!app.is_main_menu_open());
+        press(&mut app, KeyCode::Esc);
+    }
+    press(&mut app, KeyCode::F(1));
+    assert!(app.show_help);
+    assert_eq!(ui::help::section_titles()[app.help_section], "Processes");
+    press(&mut app, KeyCode::Esc);
+    press(&mut app, KeyCode::Esc);
+    press(&mut app, KeyCode::Left);
+    app.on_mouse(left_click(screen.width - 1, 20), screen);
+    assert!(!app.is_main_menu_open());
+    assert!(!app.show_help);
+    assert_eq!(app.focused_panel, focus);
+}

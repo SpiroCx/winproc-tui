@@ -335,6 +335,7 @@ impl HeaderAction {
             Self::View => Some(MainMenuSection::View),
             Self::Tools => Some(MainMenuSection::Tools),
             Self::Settings => Some(MainMenuSection::Settings),
+            Self::Help => Some(MainMenuSection::Help),
             Self::More => Some(MainMenuSection::More),
             _ => None,
         }
@@ -369,6 +370,17 @@ fn available_actions(app: &App) -> Vec<HeaderAction> {
         .into_iter()
         .filter(|action| app.activity() != AppActivity::LogView || *action != Tools)
         .collect()
+}
+
+pub(crate) fn menu_sections(screen: Rect, app: &App) -> Vec<MainMenuSection> {
+    let mut sections = available_actions(app)
+        .into_iter()
+        .filter_map(HeaderAction::section)
+        .collect::<Vec<_>>();
+    if !overflow_actions(screen, app).is_empty() {
+        sections.push(MainMenuSection::More);
+    }
+    sections
 }
 
 pub(crate) fn header_actions(area: Rect, app: &App) -> Vec<(HeaderAction, Rect)> {

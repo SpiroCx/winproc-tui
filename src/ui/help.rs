@@ -116,7 +116,7 @@ const GLOBAL_ROWS: &[HelpItem] = &[
     },
     HelpItem {
         key: "↑/↓, ←/→, Enter",
-        label: "Select item, switch menu, activate",
+        label: "Select item, switch menu (including Help), activate",
     },
     HelpItem {
         key: "Space",

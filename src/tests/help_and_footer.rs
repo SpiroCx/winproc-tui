@@ -144,7 +144,7 @@ fn help_dialog_buffer_shows_two_column_layout() {
         "{rendered}"
     );
     assert!(
-        rendered.contains("Select item, switch menu, activate"),
+        rendered.contains("Select item, switch menu (including Help), activate"),
         "{rendered}"
     );
     assert!(

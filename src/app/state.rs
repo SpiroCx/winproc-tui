@@ -930,6 +930,7 @@ pub(crate) enum MainMenuSection {
     View,
     Tools,
     Settings,
+    Help,
     More,
 }
 
@@ -967,7 +968,7 @@ impl MainMenuSection {
                 ToggleContrast,
                 OpenStartupBehavior,
             ],
-            (Self::Tools | Self::More, _) => &[],
+            (Self::Tools | Self::Help | Self::More, _) => &[],
         }
     }
 }
@@ -6560,24 +6561,7 @@ impl App {
     }
 
     pub(crate) fn switch_main_menu(&mut self, forward: bool) {
-        let has_overflow =
-            !crate::ui::header::overflow_actions(self.shortcut_map.borrow().screen, self)
-                .is_empty();
-        let sections = [
-            MainMenuSection::Session,
-            MainMenuSection::Profile,
-            MainMenuSection::View,
-            MainMenuSection::Tools,
-            MainMenuSection::Settings,
-            MainMenuSection::More,
-        ]
-        .into_iter()
-        .filter(|section| match section {
-            MainMenuSection::Tools => self.activity() != AppActivity::LogView,
-            MainMenuSection::More => has_overflow,
-            _ => true,
-        })
-        .collect::<Vec<_>>();
+        let sections = crate::ui::header::menu_sections(self.shortcut_map.borrow().screen, self);
         let count = sections.len();
         let index = sections
             .iter()
@@ -6650,6 +6634,10 @@ impl App {
         if self.activity() != opened_activity {
             self.dismiss_main_menu();
             self.status = "Menu closed because the activity changed".to_string();
+            return Ok(());
+        }
+        if self.main_menu_section == MainMenuSection::Help {
+            self.activate_header_action(crate::ui::header::HeaderAction::Help);
             return Ok(());
         }
         let Some(row) = self.main_menu_rows().get(self.main_menu_selected).copied() else {
