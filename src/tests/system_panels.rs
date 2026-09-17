@@ -508,6 +508,7 @@ fn memory_uses_columns_and_gpu_uses_one_based_pages() {
     let memory = render_app_to_text(&app, 180, 30);
     assert!(memory.contains("Pages Out/s"), "{memory}");
     assert!(!memory.contains("MEM 1/2"), "{memory}");
+    app.set_screen_area(Rect::new(0, 0, 180, 30));
     app.select_next_resource_page();
     assert_eq!(app.selected_system_metric(), SystemMetric::PagedPool);
     assert_eq!(app.status, "MEM row: Paged Pool");
@@ -525,6 +526,7 @@ fn memory_uses_columns_and_gpu_uses_one_based_pages() {
 #[test]
 fn memory_column_navigation_clamps_to_the_shorter_pressure_column() {
     let mut app = make_test_app(3, 10);
+    app.set_screen_area(Rect::new(0, 0, 180, 30));
     app.focused_panel = FocusedPanel::System;
     app.ram_vram_selected_index = SystemMetric::MEMORY_OVERVIEW_PANEL.len() - 1;
 
@@ -1009,4 +1011,29 @@ fn ab_key_does_not_open_details_panel() {
     assert!(app.ab_comparison.is_none());
     assert!(!app.show_details);
     assert_eq!(app.status, status);
+}
+
+#[test]
+fn compact_memory_navigation_excludes_hidden_pressure_column_after_resize() {
+    let mut app = make_test_app(3, 10);
+    app.focused_panel = FocusedPanel::System;
+    app.set_screen_area(Rect::new(0, 0, 180, 30));
+    app.on_key(KeyCode::Right.into()).unwrap();
+    assert_eq!(app.selected_system_metric(), SystemMetric::PagedPool);
+    app.on_key(KeyCode::Char(' ').into()).unwrap();
+    app.set_screen_area(Rect::new(0, 0, 120, 30));
+    assert_eq!(app.selected_system_metric(), SystemMetric::PhysicalMemory);
+    app.on_key(KeyCode::Right.into()).unwrap();
+    assert_eq!(app.selected_system_metric(), SystemMetric::PhysicalMemory);
+    let area = ui::ram_vram_panel_area_for_screen(app.last_screen_area, &app);
+    for x in area.x..area.right() {
+        assert_ne!(
+            ui::memory_metric_at_position(app.last_screen_area, &app, x, area.y + 1),
+            Some(SystemMetric::PagedPool)
+        );
+    }
+    app.set_screen_area(Rect::new(0, 0, 180, 30));
+    app.on_key(KeyCode::Right.into()).unwrap();
+    assert_eq!(app.selected_system_metric(), SystemMetric::PagedPool);
+    assert_eq!(app.graph_entries.len(), 1);
 }

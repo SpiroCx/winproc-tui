@@ -45,7 +45,7 @@ pub(crate) fn draw_system_panel(
     let memory_inner = memory_block.inner(panels[0]);
     frame.render_widget(memory_block, panels[0]);
 
-    let memory_column_areas = memory_column_areas(memory_inner, &memory_columns[0]);
+    let memory_column_areas = memory_column_areas(memory_inner, &memory_columns);
     for (lines, column_area) in memory_columns.into_iter().zip(memory_column_areas) {
         frame.render_widget(
             Paragraph::new(Text::from(lines)).style(Style::default().bg(theme.panel)),
@@ -101,47 +101,6 @@ pub(crate) fn draw_system_panel(
         .style(Style::default().bg(theme.panel));
     frame.render_widget(right, activity_inner);
 
-    if let Some(controls) = resource_switch_areas(panels) {
-        for (rect, resource, label) in [
-            (controls[0], ResourcePanel::Memory, "[MEM]"),
-            (controls[1], ResourcePanel::Gpu, "[GPU]"),
-        ] {
-            let style = if app.resource_panel_hovered == Some(resource) {
-                Style::default()
-                    .fg(theme.text)
-                    .bg(theme.focus_surface)
-                    .add_modifier(Modifier::BOLD)
-            } else if app.resource_panel == resource {
-                Style::default()
-                    .fg(theme.panel)
-                    .bg(if app.panel_has_focus(FocusedPanel::System) {
-                        theme.focus_border
-                    } else {
-                        theme.muted
-                    })
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.key_hint).bg(theme.panel)
-            };
-            frame.render_widget(Paragraph::new(label).style(style), rect);
-        }
-        let hint = if app.resource_panel == ResourcePanel::Gpu {
-            let (page, count) = app.gpu_adapter_page();
-            format!("Tab · {page}/{count}")
-        } else {
-            "Tab".to_string()
-        };
-        let panel = if panels[0].width > 0 {
-            panels[0]
-        } else {
-            panels[1]
-        };
-        let hint_x = controls[1].right() + 1;
-        frame.render_widget(
-            Paragraph::new(hint).style(Style::default().fg(theme.key_hint).bg(theme.panel)),
-            Rect::new(hint_x, panel.y, panel.right().saturating_sub(hint_x + 1), 1),
-        );
-    }
     draw_cpu_panel(frame, panels[3], app, theme);
 }
 
@@ -327,6 +286,11 @@ pub(crate) fn gpu_panel_area_for_screen(screen_area: Rect, app: &App) -> Rect {
     top_panel_areas(area, app)[1]
 }
 
+pub(crate) fn memory_pressure_visible(screen: Rect, app: &App) -> bool {
+    let panel = ram_vram_panel_area_for_screen(screen, app);
+    panel.width >= desired_memory_panel_width(&memory_usage_columns(app, app.theme()), 28)
+}
+
 pub(crate) fn memory_metric_at_position(
     screen_area: Rect,
     app: &App,
@@ -343,7 +307,7 @@ pub(crate) fn memory_metric_at_position(
     });
     let row = usize::from(y.checked_sub(inner.y)?);
     let columns = memory_usage_columns(app, app.theme());
-    let column_areas = memory_column_areas(inner, &columns[0]);
+    let column_areas = memory_column_areas(inner, &columns);
     if point_in_rect(column_areas[0], x, y) {
         SystemMetric::MEMORY_OVERVIEW_PANEL.get(row).copied()
     } else if point_in_rect(column_areas[1], x, y) {
@@ -377,19 +341,24 @@ fn top_panel_areas(area: Rect, app: &App) -> [Rect; 4] {
         .saturating_add(activity_desired)
         .saturating_add(cpu_desired)
         <= area.width;
-    let (memory_width, gpu_width) = if wide {
-        (memory_desired, gpu_desired)
-    } else if app.resource_panel == ResourcePanel::Memory {
-        (memory_desired.min(area.width), 0)
+    let memory_width = if wide {
+        memory_desired
     } else {
-        (0, gpu_desired.min(area.width))
+        desired_panel_width(&memory_columns[0], 28)
     };
-    let remaining = area
+    let desired = [memory_width, gpu_desired, activity_desired, cpu_desired];
+    let total: u32 = desired.iter().map(|width| u32::from(*width)).sum();
+    let mut widths = desired;
+    if total > u32::from(area.width) {
+        // At very small widths, keep all four panels and clip their contents.
+        for (width, desired) in widths.iter_mut().zip(desired) {
+            *width = (u32::from(desired) * u32::from(area.width) / total) as u16;
+        }
+    }
+    let [memory_width, gpu_width, activity_width, _] = widths;
+    let cpu_width = area
         .width
-        .saturating_sub(memory_width)
-        .saturating_sub(gpu_width);
-    let activity_width = activity_desired.min(remaining.saturating_sub(cpu_desired.min(remaining)));
-    let cpu_width = remaining.saturating_sub(activity_width);
+        .saturating_sub(memory_width + gpu_width + activity_width);
     [
         Rect::new(area.x, area.y, memory_width, area.height),
         Rect::new(
@@ -710,8 +679,8 @@ fn desired_memory_panel_width(columns: &[Vec<Line<'_>>; 2], minimum: u16) -> u16
     content_width.saturating_add(2).max(minimum)
 }
 
-fn memory_column_areas(inner: Rect, left_lines: &[Line<'_>]) -> [Rect; 2] {
-    let left_width = (left_lines.iter().map(line_width).max().unwrap_or(1) as u16).min(inner.width);
+fn memory_column_areas(inner: Rect, columns: &[Vec<Line<'_>>; 2]) -> [Rect; 2] {
+    let left_width = (columns[0].iter().map(line_width).max().unwrap_or(1) as u16).min(inner.width);
     let gap = MEMORY_COLUMN_GAP.min(inner.width.saturating_sub(left_width));
     let right_x = inner.x.saturating_add(left_width).saturating_add(gap);
     [
@@ -719,7 +688,11 @@ fn memory_column_areas(inner: Rect, left_lines: &[Line<'_>]) -> [Rect; 2] {
         Rect::new(
             right_x,
             inner.y,
-            inner.right().saturating_sub(right_x),
+            if inner.width >= desired_memory_panel_width(columns, 0).saturating_sub(2) {
+                inner.right().saturating_sub(right_x)
+            } else {
+                0
+            },
             inner.height,
         ),
     ]
@@ -996,32 +969,6 @@ pub(crate) fn optional_value_color(value: Option<u64>, theme: Theme) -> ratatui:
         Some(_) => theme.text,
         None => theme.muted,
     }
-}
-
-fn resource_switch_areas(panels: [Rect; 4]) -> Option<[Rect; 2]> {
-    if panels[0].width > 0 && panels[1].width > 0 {
-        return None;
-    }
-    let panel = if panels[0].width > 0 {
-        panels[0]
-    } else {
-        panels[1]
-    };
-    (panel.width >= 18 && panel.height > 0).then(|| {
-        [
-            Rect::new(panel.x + 1, panel.y, 5, 1),
-            Rect::new(panel.x + 7, panel.y, 5, 1),
-        ]
-    })
-}
-
-pub(crate) fn resource_switch_at(screen: Rect, app: &App, x: u16, y: u16) -> Option<ResourcePanel> {
-    let controls =
-        resource_switch_areas(top_panel_areas(system_panel_area_for_screen(screen), app))?;
-    [ResourcePanel::Memory, ResourcePanel::Gpu]
-        .into_iter()
-        .zip(controls)
-        .find_map(|(resource, rect)| rect.contains((x, y).into()).then_some(resource))
 }
 
 pub(crate) fn network_endpoint_action_area(screen: Rect, app: &App) -> Option<Rect> {

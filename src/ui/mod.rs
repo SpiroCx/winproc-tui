@@ -370,5 +370,3 @@ fn draw_no_graph_metrics_warning(
     );
     frame.render_widget(dialog, popup);
 }
-
-pub(crate) use system_panel::resource_switch_at;

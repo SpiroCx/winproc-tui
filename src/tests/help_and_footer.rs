@@ -739,32 +739,47 @@ fn graph_history_state_and_end_hint_follow_manual_selection() {
 }
 
 #[test]
-fn compact_resource_tabs_share_drawing_and_click_targets() {
+fn compact_resource_panels_stay_separate_and_fill_the_row() {
     use crate::app::ResourcePanel;
     let mut app = make_test_app(2, 10);
-    let screen = Rect::new(0, 0, 120, 60);
-    for (label, expected) in [
-        ("[GPU]", ResourcePanel::Gpu),
-        ("[MEM]", ResourcePanel::Memory),
-    ] {
-        let buffer = render_app_to_buffer(&app, 120, 60);
-        let (x, y) = find_text_position(&buffer, label).unwrap();
-        assert_eq!(ui::resource_switch_at(screen, &app, x, y), Some(expected));
-        app.on_mouse(
-            MouseEvent {
-                kind: MouseEventKind::Down(MouseButton::Left),
-                column: x,
-                row: y,
-                modifiers: KeyModifiers::NONE,
-            },
-            screen,
-        );
-        assert_eq!(app.resource_panel, expected);
-        assert_eq!(app.focused_panel, FocusedPanel::System);
+    for width in [80, 100, 120, 140, 180, 300, 120] {
+        let screen = Rect::new(0, 0, width, 60);
+        app.set_screen_area(screen);
+        let areas = [
+            ui::ram_vram_panel_area_for_screen(screen, &app),
+            ui::gpu_panel_area_for_screen(screen, &app),
+            ui::system_activity_panel_area_for_screen(screen, &app),
+            ui::cpu_panel_area_for_screen(screen, &app),
+        ];
+        assert_eq!(areas[0].x, 0);
+        assert_eq!(areas[3].right(), width);
+        for pair in areas.windows(2) {
+            assert_eq!(pair[0].right(), pair[1].x);
+            assert!(pair[0].width > 2);
+        }
+        let rendered = render_app_to_text(&app, width, 60);
+        for label in [" MEM ", " GPU ", " NW/DISK ", " CPU "] {
+            assert!(rendered.contains(label), "width={width}: {rendered}");
+        }
+        assert!(!rendered.contains("[MEM]"));
+        assert_eq!(rendered.contains("Paged Pool"), width >= 140);
+        for (area, resource) in [
+            (areas[0], ResourcePanel::Memory),
+            (areas[1], ResourcePanel::Gpu),
+        ] {
+            app.on_mouse(
+                MouseEvent {
+                    kind: MouseEventKind::Down(MouseButton::Left),
+                    column: area.x + 2,
+                    row: area.y,
+                    modifiers: KeyModifiers::NONE,
+                },
+                screen,
+            );
+            assert_eq!(app.resource_panel, resource);
+            assert_eq!(app.focused_panel, FocusedPanel::System);
+        }
     }
-    let wide = render_app_to_text(&app, 300, 60);
-    assert!(!wide.contains("[MEM]"));
-    assert!(wide.contains("GPU"));
 }
 
 #[test]
@@ -1203,53 +1218,37 @@ fn help_preserves_network_query_selection_and_workspace() {
 }
 
 #[test]
-fn compact_resource_tabs_replace_underlying_title_colors_in_every_state() {
+fn resource_titles_use_readable_panel_colors_at_every_width() {
     use crate::app::ResourcePanel;
     for theme_index in 0..ui::THEMES.len() {
         for high_contrast in [false, true] {
             for focused in [false, true] {
                 for active in [ResourcePanel::Memory, ResourcePanel::Gpu] {
-                    for hovered in [None, Some(ResourcePanel::Memory), Some(ResourcePanel::Gpu)] {
-                        let mut app = make_test_app(2, 10);
-                        app.theme_index = theme_index;
-                        app.high_contrast = high_contrast;
-                        app.resource_panel = active;
-                        app.resource_panel_hovered = hovered;
-                        app.focused_panel = if focused {
-                            FocusedPanel::System
-                        } else {
-                            FocusedPanel::SystemActivity
-                        };
-                        let theme = app.theme();
-                        for width in [80, 120] {
-                            let buffer = render_app_to_buffer(&app, width, 60);
-                            for (label, resource) in [
-                                ("[MEM]", ResourcePanel::Memory),
-                                ("[GPU]", ResourcePanel::Gpu),
-                            ] {
-                                let (x, y) = find_text_position(&buffer, label).unwrap();
-                                let (fg, bg) = if hovered == Some(resource) {
-                                    (theme.text, theme.focus_surface)
-                                } else if active == resource {
-                                    (
-                                        theme.panel,
-                                        if focused {
-                                            theme.focus_border
-                                        } else {
-                                            theme.muted
-                                        },
-                                    )
-                                } else {
-                                    (theme.key_hint, theme.panel)
-                                };
-                                for offset in 0..5 {
-                                    let cell = &buffer[(x + offset, y)];
-                                    assert_eq!(
-                                        (cell.fg, cell.bg),
-                                        (fg, bg),
-                                        "theme={theme_index} high={high_contrast} focused={focused} active={active:?} hovered={hovered:?} width={width} label={label} offset={offset}"
-                                    );
-                                }
+                    let mut app = make_test_app(2, 10);
+                    app.theme_index = theme_index;
+                    app.high_contrast = high_contrast;
+                    app.resource_panel = active;
+                    app.focused_panel = if focused {
+                        FocusedPanel::System
+                    } else {
+                        FocusedPanel::Processes
+                    };
+                    let theme = app.theme();
+                    for width in [80, 120, 180] {
+                        let buffer = render_app_to_buffer(&app, width, 60);
+                        for (label, resource) in [
+                            (" MEM ", ResourcePanel::Memory),
+                            (" GPU ", ResourcePanel::Gpu),
+                        ] {
+                            let (x, y) = find_text_position(&buffer, label).unwrap();
+                            let bg = if focused && active == resource {
+                                theme.focus_border
+                            } else {
+                                theme.muted
+                            };
+                            for offset in 0..5 {
+                                let cell = &buffer[(x + offset, y)];
+                                assert_eq!((cell.fg, cell.bg), (theme.panel, bg));
                             }
                         }
                     }

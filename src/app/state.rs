@@ -1210,7 +1210,6 @@ pub(crate) struct App {
     pub(crate) graph_scrollbar_grab_offset: usize,
     pub(crate) graph_hovered_target: Option<GraphHoverTarget>,
     pub(crate) cpu_per_core_hovered: bool,
-    pub(crate) resource_panel_hovered: Option<ResourcePanel>,
     pub(crate) graph_return_focus: FocusedPanel,
     pub(crate) source_cell_last_click: Option<SourceCellClick>,
     pub(crate) details_target: DetailsTarget,
@@ -1510,7 +1509,6 @@ impl App {
             graph_scrollbar_grab_offset: 0,
             graph_hovered_target: None,
             cpu_per_core_hovered: false,
-            resource_panel_hovered: None,
             graph_return_focus: FocusedPanel::Processes,
             source_cell_last_click: None,
             details_target: DetailsTarget::Process,
@@ -1656,6 +1654,12 @@ impl App {
             self.process_panel_resize_drag = None;
         }
         self.last_screen_area = area;
+        if self.resource_panel == ResourcePanel::Memory
+            && self.ram_vram_selected_index >= SystemMetric::MEMORY_OVERVIEW_PANEL.len()
+            && !crate::ui::system_panel::memory_pressure_visible(area, self)
+        {
+            self.ram_vram_selected_index -= SystemMetric::MEMORY_OVERVIEW_PANEL.len();
+        }
         self.ensure_selected_process_column_visible();
     }
 
@@ -3442,7 +3446,10 @@ impl App {
             ResourcePanel::Memory => {
                 let left_len = SystemMetric::MEMORY_OVERVIEW_PANEL.len();
                 let right_len = SystemMetric::MEMORY_PRESSURE_PANEL.len();
-                if self.ram_vram_selected_index < left_len && right_len > 0 {
+                if self.ram_vram_selected_index < left_len
+                    && right_len > 0
+                    && crate::ui::system_panel::memory_pressure_visible(self.last_screen_area, self)
+                {
                     self.ram_vram_selected_index =
                         left_len.saturating_add(self.ram_vram_selected_index.min(right_len - 1));
                 }

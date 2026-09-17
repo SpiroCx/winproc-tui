@@ -91,7 +91,7 @@ Process Graph and Samples captions retain the target PID when names must be shor
 
 Graph and Samples show their local history/follow state independently of the activity header. Manual history inspection offers a return to the latest sample; paused and recorded latest samples are labeled by their source. Returning to latest or reaching the latest pan boundary uses that same source label; it never implies that display pause has ended or that recorded samples are live.
 
-When MEM and GPU share the available resource-panel space, visible tabs expose both resources. Keyboard focus cycling and direct tab clicks retain the existing resource metric selection and Graph action semantics.
+MEM, GPU, NW/DISK, and CPU remain separate across terminal widths. When the full row does not fit, MEM omits its secondary memory-pressure column before the panels shrink. The row fills the available width, and drawing, hit testing, and keyboard metric selection use the visible layout. Resizing a selected hidden MEM column returns selection to the corresponding overview row; Graph registrations remain intact.
 
 Directional panel navigation treats GRAPHS as one workspace and Samples as a separate visible panel. Entering or leaving GRAPHS preserves its active card; card selection and shared-time panning remain independent operations.
 

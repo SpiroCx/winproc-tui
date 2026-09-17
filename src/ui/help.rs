@@ -363,12 +363,12 @@ const SCHEDULING_ROWS: &[HelpItem] = &[
 
 const RAM_VRAM_ROWS: &[HelpItem] = &[
     HelpItem {
-        key: "[MEM] / [GPU], Tab",
-        label: "Switch the shared resource panel by click or focus",
+        key: "Tab / Ctrl+←/→",
+        label: "Move focus between MEM and GPU panels",
     },
     HelpItem {
         key: "←/→",
-        label: "Switch MEM column / GPU adapter",
+        label: "Switch visible MEM column / GPU adapter",
     },
     HelpItem {
         key: "↑/↓",

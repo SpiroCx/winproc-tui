@@ -1624,15 +1624,12 @@ impl App {
             self.clear_source_cell_click();
             self.graph_hovered_target = None;
             self.cpu_per_core_hovered = false;
-            self.resource_panel_hovered = None;
             self.process_panel_resize_hovered = false;
             self.process_panel_resize_drag = None;
             self.process_view_mode_hovered = false;
             self.process_tracked_only_hovered = false;
             self.process_disclosure_hovered = None;
         } else {
-            self.resource_panel_hovered =
-                crate::ui::resource_switch_at(screen_area, self, mouse.column, mouse.row);
             self.graph_hovered_target =
                 graph_hover_target_at(self, screen_area, mouse.column, mouse.row);
             self.cpu_per_core_hovered =
@@ -2177,13 +2174,6 @@ impl App {
                     return;
                 }
                 if self.toggle_graph_slot_layout_at(mouse.column, mouse.row, screen_area) {
-                    return;
-                }
-                if let Some(resource) =
-                    crate::ui::resource_switch_at(screen_area, self, mouse.column, mouse.row)
-                {
-                    self.focused_panel = FocusedPanel::System;
-                    self.select_resource_panel(resource);
                     return;
                 }
                 self.focus_panel_at(mouse.column, mouse.row, screen_area);
