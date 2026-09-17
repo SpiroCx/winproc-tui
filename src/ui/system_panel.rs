@@ -113,10 +113,15 @@ pub(crate) fn draw_system_panel(
                     .add_modifier(Modifier::BOLD)
             } else if app.resource_panel == resource {
                 Style::default()
-                    .fg(theme.accent)
+                    .fg(theme.panel)
+                    .bg(if app.panel_has_focus(FocusedPanel::System) {
+                        theme.focus_border
+                    } else {
+                        theme.muted
+                    })
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(theme.key_hint)
+                Style::default().fg(theme.key_hint).bg(theme.panel)
             };
             frame.render_widget(Paragraph::new(label).style(style), rect);
         }
@@ -133,7 +138,7 @@ pub(crate) fn draw_system_panel(
         };
         let hint_x = controls[1].right() + 1;
         frame.render_widget(
-            Paragraph::new(hint).style(Style::default().fg(theme.key_hint)),
+            Paragraph::new(hint).style(Style::default().fg(theme.key_hint).bg(theme.panel)),
             Rect::new(hint_x, panel.y, panel.right().saturating_sub(hint_x + 1), 1),
         );
     }

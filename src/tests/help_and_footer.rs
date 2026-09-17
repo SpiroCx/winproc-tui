@@ -1201,3 +1201,60 @@ fn help_preserves_network_query_selection_and_workspace() {
     assert_eq!(app.network_browser.generation, generation);
     assert_eq!(app.network_browser.selected, selected);
 }
+
+#[test]
+fn compact_resource_tabs_replace_underlying_title_colors_in_every_state() {
+    use crate::app::ResourcePanel;
+    for theme_index in 0..ui::THEMES.len() {
+        for high_contrast in [false, true] {
+            for focused in [false, true] {
+                for active in [ResourcePanel::Memory, ResourcePanel::Gpu] {
+                    for hovered in [None, Some(ResourcePanel::Memory), Some(ResourcePanel::Gpu)] {
+                        let mut app = make_test_app(2, 10);
+                        app.theme_index = theme_index;
+                        app.high_contrast = high_contrast;
+                        app.resource_panel = active;
+                        app.resource_panel_hovered = hovered;
+                        app.focused_panel = if focused {
+                            FocusedPanel::System
+                        } else {
+                            FocusedPanel::SystemActivity
+                        };
+                        let theme = app.theme();
+                        for width in [80, 120] {
+                            let buffer = render_app_to_buffer(&app, width, 60);
+                            for (label, resource) in [
+                                ("[MEM]", ResourcePanel::Memory),
+                                ("[GPU]", ResourcePanel::Gpu),
+                            ] {
+                                let (x, y) = find_text_position(&buffer, label).unwrap();
+                                let (fg, bg) = if hovered == Some(resource) {
+                                    (theme.text, theme.focus_surface)
+                                } else if active == resource {
+                                    (
+                                        theme.panel,
+                                        if focused {
+                                            theme.focus_border
+                                        } else {
+                                            theme.muted
+                                        },
+                                    )
+                                } else {
+                                    (theme.key_hint, theme.panel)
+                                };
+                                for offset in 0..5 {
+                                    let cell = &buffer[(x + offset, y)];
+                                    assert_eq!(
+                                        (cell.fg, cell.bg),
+                                        (fg, bg),
+                                        "theme={theme_index} high={high_contrast} focused={focused} active={active:?} hovered={hovered:?} width={width} label={label} offset={offset}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
